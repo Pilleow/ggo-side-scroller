@@ -3,8 +3,8 @@
 ## Movement
 - WASD for up, down, left, right, you know how it goes,
 - E for interacting,
-- Dash - moving left or right fast w/ cooldown (?),
-- Double jump - double jump, duh (?),
+- Dash - moving left or right fast w/ cooldown,
+- Double jump - double jump, duh,
 
 ## Fighting
 - Multiple types of weapons available (See: Money Shop),
@@ -108,12 +108,12 @@
 - They have one time use. Upon using, one instance is deleted from the user’s inventory,
 - They can be obtained by buying them in the Money Shop or as loot from enemy drops,
 
-### Map Layout
+## Map Layout
 - This is a typical map layout used for the majority of levels in the game. Of course, some levels may have other layouts,
 
 [Level Schematic](https://drive.google.com/file/d/1br5fMtYEUP2o3Tog_hlOPWirpOjjAdq_/view?usp=sharing)
 
-### Item Chests
+## Item Chests
 - On some levels, in the orange zone (see: Map Layout), secret chests can be found,
 - When the player comes close enough to the chest (and doesn’t have the key responsible for opening it), it will display a text box over it, which will say it needs a key to open it,
 - When the player has the key and comes close enough to the chest, the player will be able to interact with it using a keystroke to open it,
