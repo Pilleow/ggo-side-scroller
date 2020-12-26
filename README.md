@@ -111,7 +111,7 @@
 ### Map Layout
 - This is a typical map layout used for the majority of levels in the game. Of course, some levels may have other layouts,
 
-`ADD IMG HERE`
+[Level Schematic](https://drive.google.com/file/d/1br5fMtYEUP2o3Tog_hlOPWirpOjjAdq_/view?usp=sharing)
 
 ### Item Chests
 - On some levels, in the orange zone (see: Map Layout), secret chests can be found,
