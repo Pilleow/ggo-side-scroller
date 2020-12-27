@@ -77,7 +77,7 @@ class Tools:
 
 
 class Entity:
-    def __init__(self, x: int, y: int, width: int, height: int, velocity: int = 2) -> None:
+    def __init__(self, x: int, y: int, width: int, height: int, velocity: int) -> None:
         self.rect = pygame.Rect(x, y, width, height)
         self.spawnpoint = [x, y]
 

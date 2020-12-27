@@ -1,6 +1,7 @@
 import pygame
 import json
 import data.engine as e
+import data.classes as c
 
 from math import ceil
 from random import choice
@@ -49,7 +50,9 @@ backgrounds = [
 tiles = tools.load_images('sprites/tilesets/wasteland', colorkey=COLORKEY)
 
 # map
-game_map = tools.load_json('data/maps/map.json')
+CURRENT_MAP = 'wasteland_1'
+
+game_map = tools.load_json(f'data/maps/{CURRENT_MAP}.json')
 spawnpoint = [0, 0]
 y = 0
 for layer in game_map['map']:
@@ -68,7 +71,17 @@ MAP_BOTTOM_Y = len(game_map['map']) * TILE_SIZE
 MAP_WIDTH = len(game_map['map'][0]) * TILE_SIZE
 
 # player
-player = e.Entity(spawnpoint[0], spawnpoint[1], 6, 10, 2)
+player_data = {
+    'x': spawnpoint[0],
+    'y': spawnpoint[1],
+    'width': 6,
+    'height': 10,
+    'velocity': 2,
+    'hp': 100,
+    'special_move': 'double_jump',
+    'inventory': []
+}
+player = c.Player(player_data)
 player.load_sprites('sprites/player/')
 
 # other

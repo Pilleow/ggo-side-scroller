@@ -2,34 +2,9 @@ import pygame
 import json
 import os
 import data.engine as e
+import data.classes as c
 
 from math import ceil
-
-
-class Button:
-    def __init__(self, x, y, sprite_clicked, sprite_idle, tile_type):
-        self.rect = pygame.Rect(x, y, sprite_idle.get_width(), sprite_idle.get_height())
-        self.sprites = {"idle": sprite_idle, "clicked": sprite_clicked}
-        self.tile_type = tile_type
-        self.clicked = False
-
-    def check_if_hovering(self, mouse_pos) -> bool:
-        if pygame.Rect(mouse_pos[0], mouse_pos[1], 1, 1).colliderect(self.rect):
-            return True
-        return False
-
-    def render(self, display):
-        if self.clicked:
-            if type(self.sprites['clicked']) == list:
-                pygame.draw.rect(display, self.sprites['clicked'], self.rect)
-            else:
-                display.blit(self.sprites['clicked'], (self.rect.x, self.rect.y))
-        else:
-            if type(self.sprites['idle']) == list:
-                pygame.draw.rect(display, self.sprites['idle'], self.rect)
-            else:
-                display.blit(self.sprites['idle'], (self.rect.x, self.rect.y))
-
 
 RES = (1600, 900)
 TRUE_RES = (480, 270)
@@ -70,7 +45,7 @@ for tile in tiles:
     c2 = tiles[tile].get_at((TILE_SIZE//4, 0))
     final_color = [(c1.r + c2.r)//2 - 20, (c1.g + c2.g)//2 - 20, (c1.b + c2.b)//2 - 20]
     final_color = list(map(abs, final_color))
-    buttons.append(Button(x, y, final_color, tiles[tile], tile))
+    buttons.append(c.Button(x, y, final_color, tiles[tile], tile))
     if tile == 'ERASE':
         buttons[-1].tile_type = ''
     y += TILE_SIZE + 3
