@@ -1,7 +1,79 @@
 import pygame
+import json
 import os
 
-ALLOWED_SPRITE_EXTENSIONS = ['.png', '.jpg', '.jpeg']
+ALLOWED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg']
+ALLOWED_AUDIO_EXTENSIONS = ['.wav']
+
+
+class Tools:
+    @staticmethod
+    def load_images(path: str, file_names: list=None, colorkey: tuple=None) -> dict:
+        '''
+        Returns dict with names of files (listed in `file_names`) without extensions as keys.\\
+        If one file is loaded, return a single image (as an object).\n
+        Set a `colorkey` if provided. Leave `file_names` empty to load all images from `path`.
+        '''
+        if not file_names:
+            file_names = os.listdir(path)
+
+        if len(file_names) == 1:
+            s = pygame.image.load(f'{path}/{file_names[0]}').convert()
+            if colorkey:
+                s.set_colorkey(colorkey)
+            return s
+
+        sprites = {}
+        for f in file_names:
+            name, ext = os.path.splitext(f)
+            if ext not in ALLOWED_IMAGE_EXTENSIONS:
+                continue
+            s = pygame.image.load(f'{path}/{f}').convert()
+            if colorkey:
+                s.set_colorkey(colorkey)
+            sprites[name] = s
+        return sprites
+
+    @staticmethod
+    def load_sounds(path: str, file_names: list=None, volume: float=1) -> list:
+        '''
+        Returns a list with sounds listed in `file_names`.\n
+        Leave `file_names` empty to load all sounds from `path`.
+        '''
+        if not file_names:
+            file_names = os.listdir(path)
+
+        if len(file_names) == 1:
+            s = pygame.mixer.Sound(f'{path}/{file_names[0]}')
+            s.set_volume(volume)
+            return s
+
+        sounds = []
+        for f in file_names:
+            name, ext = os.path.splitext(f)
+            if ext not in ALLOWED_AUDIO_EXTENSIONS:
+                continue
+            s = pygame.mixer.Sound(f'{path}/{f}')
+            s.set_volume(volume)
+            sounds.append(s)
+        return sounds
+
+    @staticmethod
+    def load_json(path: str, mode: str='r', encoding: str='utf') -> object:
+        '''
+        Load a JSON file from `path`.
+        '''
+        with open(path, mode=mode, encoding=encoding) as f:
+            game_map = json.load(f)
+        return game_map
+
+    @staticmethod
+    def save_json(data, path: str, mode: str='w+', encoding: str='utf', indent: int=None) -> None:
+        '''
+        Save a JSON file to `path`.
+        '''
+        with open(path, mode=mode, encoding=encoding) as f:
+            json.dump(data, f, indent=indent)
 
 
 class Entity:
@@ -12,7 +84,7 @@ class Entity:
         self.current_sprite = 'idle'
         self.y_momentum = 0
         self.air_timer = 0
-        self.velocity = 2
+        self.velocity = velocity
         self.moving_right = False
         self.moving_left = False
         self.flip = [False, False]
@@ -26,17 +98,18 @@ class Entity:
 
     def load_sprites(self, path: str) -> None:
         ''' 
-        Scan and load all sprites from "path" 
-        -> save in "self.sprites" 
+        1. Load all sprites from `path`,
+        2. save in `self.sprites`.
         '''
         for f in os.listdir(path):
-            f_split = os.path.splitext(f)
-            if f_split[-1] in ALLOWED_SPRITE_EXTENSIONS:
-                self.sprites[f_split[0]] = pygame.image.load(path + f)
+            name, ext = os.path.splitext(f)
+            if ext not in ALLOWED_IMAGE_EXTENSIONS:
+                continue
+            self.sprites[name] = pygame.image.load(path + f)
 
     def set_flip_sprite(self, x_axis: bool, y_axis: bool) -> None:
         ''' 
-        set a sprite flip for current sprite 
+        Set a sprite flip for current sprite.
         '''
         if self.flip[0] != x_axis:
             self.sprites[self.current_sprite] = pygame.transform.flip(self.sprites[self.current_sprite], False, True)
@@ -46,8 +119,8 @@ class Entity:
 
     def move(self, movement: [int, int], tiles: list) -> {'top': bool, 'bottom': bool, 'left': bool, 'right': bool}:
         ''' 
-        Check for collisions with "tiles" on X and Y axes separately 
-        -> move entity by "movement" 
+        1. Move entity by `movement`,
+        2. Check for collisions with `tiles` on X and Y axes separately.
         '''
         collision_types = {'top': False, 'bottom': False,
                     'left': False, 'right': False}
@@ -78,7 +151,7 @@ class Entity:
 
     def render(self, display: object, true_scroll: [int, int], draw_rect: bool=False) -> None:
         ''' 
-        render entity sprite on "display" 
+        Render entity sprite on `display`.
         '''
         display.blit(self.sprites[self.current_sprite], (self.rect.x - true_scroll[0], self.rect.y - true_scroll[1]))
         if draw_rect:
@@ -86,7 +159,7 @@ class Entity:
 
     def _collision_test(self, tiles: list) -> list:
         ''' 
-        get list of colliding pygame.Rects 
+        Get list of colliding `pygame.Rects`.
         '''
         hit_list = []
         for tile in tiles:

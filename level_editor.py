@@ -1,18 +1,9 @@
 import pygame
 import json
 import os
+import data.engine as e
 
 from math import ceil
-
-tile_parse_values = {
-    'floor': '8',
-    'floor_left': '7',
-    'floor_right': '9',
-    'inside': '5',
-    'inside_skull': 'x',
-    'block': 'B',
-    'player_spawn': 'P'
-}
 
 
 class Button:
@@ -40,44 +31,8 @@ class Button:
                 display.blit(self.sprites['idle'], (self.rect.x, self.rect.y))
 
 
-def load_image(path):
-    img = pygame.image.load(path).convert()
-    img.set_colorkey(COLORKEY)
-    return img
-
-
-def load_game_map(path):
-    with open(path, mode='r', encoding='utf') as f:
-        game_map = json.load(f)
-    MAP_DIMENSIONS = [len(game_map['map'][0]), len(game_map['map'])]
-
-    # parse map to match tile naming convention in level editor
-    for layer_int in range(MAP_DIMENSIONS[1]):
-        for tile_int in range(MAP_DIMENSIONS[0]):
-            tile = game_map['map'][layer_int][tile_int]
-            for parsed_tile in tile_parse_values:
-                if tile == tile_parse_values[parsed_tile]:
-                    game_map['map'][layer_int][tile_int] = parsed_tile
-
-    return game_map
-
-
-def parse_and_save_map():
-    # parse map to match tile naming convention in game
-    for layer_int in range(MAP_DIMENSIONS[1]):
-        for tile_int in range(MAP_DIMENSIONS[0]):
-            tile = game_map['map'][layer_int][tile_int]
-            if tile in tile_parse_values:
-                game_map['map'][layer_int][tile_int] = tile_parse_values[tile]
-
-    # save to json at the same directory
-    with open('map.json', mode='w+', encoding='utf') as f:
-        json.dump(game_map, f)
-
-
 RES = (1600, 900)
 TRUE_RES = (480, 270)
-COLORKEY = (255, 255, 255)
 FPS = 60
 
 pygame.init()
@@ -86,6 +41,7 @@ clock = pygame.time.Clock()
 screen = pygame.display.set_mode(RES, 0, 32)
 pygame.display.set_caption('Level Editor')
 display = pygame.Surface(TRUE_RES)
+tools = e.Tools()
 
 # camera
 BG_COLOR = (146, 244, 255)
@@ -93,27 +49,16 @@ CAMERA_MOVE_PAD = RES[1]//5
 
 true_scroll = [0, 0]
 
-# loading tiles
+# tiles
+COLORKEY = (255, 255, 255)
 TILE_TYPE = 'wasteland'
 EMPTY_TILE_COLOR = list(map(abs, [BG_COLOR[0]-15, BG_COLOR[1]-15, BG_COLOR[2]-15]))
-ALLOWED_SPRITE_EXTENSIONS = ['.png', '.jpg', '.jpeg']
 TILE_SIZE = 16
 
-tiles = {}
-for p in [f'sprites/tilesets/{TILE_TYPE}/', 'sprites/level_editor/']:
-    for f in os.listdir(p):
-        f_split = os.path.splitext(f)
-        if f_split[-1] in ALLOWED_SPRITE_EXTENSIONS:
-            tiles[f_split[0]] = load_image(p + f)
+tiles = tools.load_images(f'sprites/tilesets/{TILE_TYPE}/', colorkey=COLORKEY)
+tiles.update(tools.load_images(f'sprites/level_editor/', colorkey=COLORKEY))
 
 # creating buttons, tile menu
-''' 
-wasteland only (can be changed)
-
-y = 6 ; initially
-y += 19 ; every tile
-12 tiles max per column
-'''
 buttons = []
 x = 6
 y = 6
@@ -125,10 +70,9 @@ for tile in tiles:
     c2 = tiles[tile].get_at((TILE_SIZE//4, 0))
     final_color = [(c1.r + c2.r)//2 - 20, (c1.g + c2.g)//2 - 20, (c1.b + c2.b)//2 - 20]
     final_color = list(map(abs, final_color))
-    if tile != 'eraser':
-        buttons.append(Button(x, y, final_color, tiles[tile], tile))
-    else:
-        buttons.append(Button(x, y, final_color, tiles[tile], ''))
+    buttons.append(Button(x, y, final_color, tiles[tile], tile))
+    if tile == 'ERASE':
+        buttons[-1].tile_type = ''
     y += TILE_SIZE + 3
 
 tile_menu = pygame.Surface((x + 9 + TILE_SIZE, TRUE_RES[1]))
@@ -182,9 +126,10 @@ while True:
                 if event.key == pygame.K_d:  # turn on draw mode
                     draw_mode_active = True
                 if event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_LCTRL: # save map to map.json
-                    parse_and_save_map()
+                    tools.save_json(game_map, 'map.json')
                 if event.key == pygame.K_l and pygame.key.get_mods() & pygame.KMOD_LCTRL: # load map
-                    game_map = load_game_map('map.json')
+                    game_map = tools.load_json('map.json')
+                    MAP_DIMENSIONS = [len(game_map['map'][0]), len(game_map['map'])]
 
             elif event.type == pygame.KEYUP:
                 if event.key == pygame.K_d:  # turn off draw mode

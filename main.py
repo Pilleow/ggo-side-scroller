@@ -6,9 +6,7 @@ from math import ceil
 from random import choice
 
 RES = (1600, 900)
-TRUE_RES = (480, 270) # lower to increase FPS (keep ratio same as "RES")
-TILE_SIZE = 16
-CHUNK_SIZE = 8
+TRUE_RES = (480, 270)  # lower to increase FPS (keep ratio same as "RES")
 FPS = 60
 
 pygame.mixer.pre_init(44100, -16, 2, 512)
@@ -19,54 +17,39 @@ clock = pygame.time.Clock()
 screen = pygame.display.set_mode(RES, 0, 32)
 pygame.display.set_caption('Unnamed Side Scroller')
 display = pygame.Surface(TRUE_RES)
-
-
-def load_game_map(path):
-    with open(path, mode='r', encoding='utf') as f:
-        game_map = json.load(f)
-    return game_map
-
-
-def load_image(path):
-    img = pygame.image.load(path).convert()
-    img.set_colorkey(COLORKEY)
-    return img
+tools = e.Tools()
 
 # camera
+BG_COLOR = (146, 244, 255)
+
 true_scroll = [0, 0]
 
 # sounds
-jump_sfx = [pygame.mixer.Sound('audio/sfx/jump_1.wav'), pygame.mixer.Sound('audio/sfx/jump_2.wav')]
-walking_sfx = [pygame.mixer.Sound('audio/sfx/walk_1.wav'), pygame.mixer.Sound('audio/sfx/walk_2.wav')]
-death_sfx = pygame.mixer.Sound('audio/sfx/death.wav')
+sfx_path = 'audio/sfx/'
+jump_sfx = tools.load_sounds(sfx_path, ['jump_1.wav', 'jump_2.wav'])
+walking_sfx = tools.load_sounds(sfx_path, ['walk_1.wav', 'walk_2.wav'], 0.15)
+death_sfx = tools.load_sounds(sfx_path, ['death.wav'], 0.25)
 pygame.mixer.music.load('audio/music/wasteland.wav')
 pygame.mixer.music.set_volume(0.02)
 walking_sfx_timer = 0
 music_muted = True
-
-for sfx in walking_sfx:
-    sfx.set_volume(0.15)
-death_sfx.set_volume(0.25)
 
 if not music_muted:
     pygame.mixer.music.play(-1)
 
 # tiles
 COLORKEY = (255, 255, 255)
+TILE_SIZE = 16
 
-backgrounds = [[0.2, load_image('sprites/backgrounds/wasteland_3.png')], [0.4, load_image('sprites/backgrounds/wasteland_2.png')]]
+backgrounds = [
+    [0.2, tools.load_images('sprites/backgrounds/', ['wasteland_3.png'], colorkey=COLORKEY)], 
+    [0.4, tools.load_images('sprites/backgrounds/', ['wasteland_2.png'], colorkey=COLORKEY)]
+]
 
-tiles = {  # for tile rendering
-    '8': load_image('sprites/tilesets/wasteland/floor.png'),
-    '7': load_image('sprites/tilesets/wasteland/floor_left.png'),
-    '9': load_image('sprites/tilesets/wasteland/floor_right.png'),
-    '5': load_image('sprites/tilesets/wasteland/inside.png'),
-    'B': load_image('sprites/tilesets/wasteland/block.png'),
-    'x': load_image('sprites/tilesets/wasteland/inside_skull.png')
-}
+tiles = tools.load_images('sprites/tilesets/wasteland', colorkey=COLORKEY)
 
 # map
-game_map = load_game_map('data/maps/map.json')
+game_map = tools.load_json('data/maps/map.json')
 spawnpoint = [0, 0]
 y = 0
 for layer in game_map['map']:
@@ -85,7 +68,7 @@ MAP_BOTTOM_Y = len(game_map['map']) * TILE_SIZE
 MAP_WIDTH = len(game_map['map'][0]) * TILE_SIZE
 
 # player
-player = e.Entity(spawnpoint[0], spawnpoint[1], 6, 10)
+player = e.Entity(spawnpoint[0], spawnpoint[1], 6, 10, 2)
 player.load_sprites('sprites/player/')
 
 # other
@@ -93,7 +76,7 @@ fps_counter = 0
 
 # game loop --------------------------------------------- #
 while True:
-    display.fill((146, 244, 255))
+    display.fill(BG_COLOR)
 
     # camera update
     true_scroll[0] += (player.rect.x - true_scroll[0] - (TRUE_RES[0] + player.rect.width)/2)/20
@@ -102,13 +85,13 @@ while True:
 
     # rendering background
     for i, bg in enumerate(backgrounds):
-        x_value = -scroll[0] * bg[0]
-        display.blit(bg[1], (x_value, TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]))
-        if x_value < 0:
-            display.blit(bg[1], (x_value + bg[1].get_width(), TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]))
-        elif x_value > 0:
-            display.blit(bg[1], (x_value - bg[1].get_width(), TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]))
-        pygame.draw.rect(display, bg[1].get_at((0, bg[1].get_height()-1)), (0, TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0] + bg[1].get_height(), TRUE_RES[0], TRUE_RES[1]//2))
+        x_value = (-scroll[0] * bg[0]) % bg[1].get_width()
+
+
+        display.blit(bg[1], (x_value, TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]//2))
+        display.blit(bg[1], (x_value - bg[1].get_width(), TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]//2))
+
+        pygame.draw.rect(display, bg[1].get_at((0, bg[1].get_height()-1)), (0, TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]//2 + bg[1].get_height(), TRUE_RES[0], TRUE_RES[1]))
 
     # rendering tiles
     tile_rects = []
@@ -151,7 +134,7 @@ while True:
                 player.moving_right = True
             elif event.key == pygame.K_a:  # go left
                 player.moving_left = True
-            elif event.key == pygame.K_w and player.air_timer < 6: # jump
+            elif event.key == pygame.K_w and player.air_timer < 6:  # jump
                 sfx = choice(jump_sfx)
                 sfx.play()
                 player.y_momentum = -player.velocity * 2.2
@@ -164,7 +147,6 @@ while True:
 
     # moving player
     player.movement = [0, 0]
-    keys = pygame.key.get_pressed()
     if player.moving_right:
         player.movement[0] += player.velocity
     if player.moving_left:
@@ -180,7 +162,7 @@ while True:
     collisions = player.move(player.movement, tile_rects)
 
     # corrections, miscellanous
-    if walking_sfx_timer > 0: # walking sfx timer
+    if walking_sfx_timer > 0:  # walking sfx timer
         walking_sfx_timer -= 1
     if player.rect.y > 500:  # respawn after fall
         player.respawn()
@@ -191,7 +173,7 @@ while True:
         player.y_momentum = 0
         player.air_timer = 0
         if player.movement[0] != 0 and walking_sfx_timer == 0 and not collisions['left'] and not collisions['right']:
-            walking_sfx_timer = 5 * player.velocity
+            walking_sfx_timer = 20 // player.velocity
             choice(walking_sfx).play()
     else:
         player.air_timer += 1
@@ -209,4 +191,3 @@ while True:
         fps_counter = 59
     else:
         fps_counter -= 1
-        
