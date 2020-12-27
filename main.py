@@ -88,8 +88,10 @@ MAP_WIDTH = len(game_map['map'][0]) * TILE_SIZE
 player = e.Entity(spawnpoint[0], spawnpoint[1], 6, 10)
 player.load_sprites('sprites/player/')
 
-# game loop --------------------------------------------- #
+# other
 fps_counter = 0
+
+# game loop --------------------------------------------- #
 while True:
     display.fill((146, 244, 255))
 
@@ -201,9 +203,10 @@ while True:
     pygame.display.update()
     clock.tick(FPS)
 
+    # fps counter
     if fps_counter == 0:
         print(clock.get_fps())
-        fps_counter = 120
+        fps_counter = 59
     else:
         fps_counter -= 1
         

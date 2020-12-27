@@ -2,6 +2,8 @@ import pygame
 import json
 import os
 
+from math import ceil
+
 tile_parse_values = {
     'floor': '8',
     'floor_left': '7',
@@ -74,6 +76,7 @@ def parse_and_save_map():
 
 
 RES = (1600, 900)
+TRUE_RES = (480, 270)
 COLORKEY = (255, 255, 255)
 FPS = 60
 
@@ -82,8 +85,7 @@ pygame.init()
 clock = pygame.time.Clock()
 screen = pygame.display.set_mode(RES, 0, 32)
 pygame.display.set_caption('Level Editor')
-
-display = pygame.Surface((RES[0]//2, RES[1]//2))
+display = pygame.Surface(TRUE_RES)
 
 # camera
 BG_COLOR = (146, 244, 255)
@@ -116,7 +118,7 @@ buttons = []
 x = 6
 y = 6
 for tile in tiles:
-    if y > RES[1]//2 - 12:
+    if y > TRUE_RES[1] - 12:
         y = 6
         x += TILE_SIZE + 3
     c1 = tiles[tile].get_at((TILE_SIZE//2, TILE_SIZE//2))
@@ -129,12 +131,12 @@ for tile in tiles:
         buttons.append(Button(x, y, final_color, tiles[tile], ''))
     y += TILE_SIZE + 3
 
-tile_menu = pygame.Surface((x + 9 + TILE_SIZE, RES[1]//2))
+tile_menu = pygame.Surface((x + 9 + TILE_SIZE, TRUE_RES[1]))
 tile_menu.set_alpha(128)
 tile_menu.fill((255,255,255))
 
 # map
-MAP_DIMENSIONS = [64, 24]
+MAP_DIMENSIONS = [640, 240]
 
 game_map = {
     'type': TILE_TYPE,
@@ -149,12 +151,13 @@ for layer in range(MAP_DIMENSIONS[1]):
 current_tile = None
 camera_move_active = False
 draw_mode_active = False
+fps_counter = 0
 
 # mainloop ---------------------------------------------- #
 while True:
     display.fill(BG_COLOR)
     mouse_pos = pygame.mouse.get_pos()
-    mouse_pos = (mouse_pos[0]/2, mouse_pos[1]/2)  # adjust values to "display" rather than "screen" resolution
+    mouse_pos = (mouse_pos[0]/(RES[0]/TRUE_RES[0]), mouse_pos[1]/(RES[0]/TRUE_RES[0]))  # adjust values to "display" rather than "screen" resolution
 
     # event handling
     for event in pygame.event.get():
@@ -200,26 +203,41 @@ while True:
     if pygame.mouse.get_focused() and camera_move_active:
         if mouse_pos[0] < CAMERA_MOVE_PAD:  # X left
             true_scroll[0] -= (CAMERA_MOVE_PAD - mouse_pos[0])/20
-        if mouse_pos[0] > RES[0]/2 - CAMERA_MOVE_PAD:  # X right
-            true_scroll[0] += (mouse_pos[0] - (RES[0]/2 - CAMERA_MOVE_PAD))/20
+        if mouse_pos[0] > TRUE_RES[0] - CAMERA_MOVE_PAD:  # X right
+            true_scroll[0] += (mouse_pos[0] - (TRUE_RES[0] - CAMERA_MOVE_PAD))/20
         if mouse_pos[1] < CAMERA_MOVE_PAD:  # Y up
             true_scroll[1] -= (CAMERA_MOVE_PAD - mouse_pos[1])/20
-        if mouse_pos[1] > RES[1]/2 - CAMERA_MOVE_PAD:  # Y down
-            true_scroll[1] += (mouse_pos[1] - (RES[1]/2 - CAMERA_MOVE_PAD))/20
+        if mouse_pos[1] > TRUE_RES[1] - CAMERA_MOVE_PAD:  # Y down
+            true_scroll[1] += (mouse_pos[1] - (TRUE_RES[1] - CAMERA_MOVE_PAD))/20
 
     scroll = list(map(int, true_scroll.copy()))
 
     # rendering game map (tiles)
+    '''
     y = 0
     for layer in game_map['map']:
         x = 0
         for tile in layer:
             if tile in tiles:
+            x += 1
+        y += 1
+    '''
+
+    for y in range(ceil(TRUE_RES[1]/TILE_SIZE) + 1):
+        y = y + int(scroll[1]/TILE_SIZE)
+        if y < 0 or y >= len(game_map['map']):
+            continue
+
+        for x in range(ceil(TRUE_RES[0]/TILE_SIZE) + 1):
+            x = x + int(scroll[0]/TILE_SIZE)
+            if x < 0 or x >= len(game_map['map'][0]):
+                continue
+
+            tile = game_map['map'][y][x]
+            if tile in tiles:
                 display.blit(tiles[tile], (x*TILE_SIZE - scroll[0], y*TILE_SIZE-scroll[1]))
             else:
                 pygame.draw.rect(display, EMPTY_TILE_COLOR, (x*TILE_SIZE-scroll[0], y*TILE_SIZE-scroll[1], TILE_SIZE, TILE_SIZE), 1)
-            x += 1
-        y += 1
 
     # rendering tile menu and buttons
     display.blit(tile_menu, (0,0))
@@ -230,3 +248,10 @@ while True:
     screen.blit(pygame.transform.scale(display, RES), (0, 0))
     pygame.display.update()
     clock.tick(FPS)
+
+    # fps counter
+    if fps_counter == 0:
+        print(clock.get_fps())
+        fps_counter = 59
+    else:
+        fps_counter -= 1
