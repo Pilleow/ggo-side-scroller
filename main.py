@@ -86,11 +86,17 @@ player = c.Player(player_data)
 player.load_sprites('sprites/player/')
 player.change_special_move('double_jump')
 
+# enemies
+enemies = []
+for path in game_map['paths']:
+    spawn = list(map(lambda x: x*TILE_SIZE, choice(path)))
+    e = c.Enemy({'x': spawn[0], 'y': spawn[1], 'width': 6, 'height': 10, 'velocity': 2, 'hp': 100})
+    e.load_path(path)
+    e.load_sprites('sprites/enemy/small/')
+    enemies.append(e)
+
 # more sounds
 special_moves = tools.load_sounds(sfx_path, ['dash.wav','change_move.wav'], 0.25, True)
-
-# other
-fps_counter = 0
 
 # game loop --------------------------------------------- #
 while True:
@@ -98,6 +104,8 @@ while True:
 
     # things
     player.movement = [0, 0]
+    for e in enemies:
+        e.movement = [0, 0]
 
     # camera update
     true_scroll[0] += (player.rect.x - true_scroll[0] - (TRUE_RES[0] + player.rect.width)/2)/20
@@ -208,6 +216,16 @@ while True:
     if player.y_momentum > 5:
         player.y_momentum = 5
 
+    for e in enemies: # apply gravity to enemies
+        if not tools.is_visible(scroll, TRUE_RES, e):
+            continue
+
+        e.y_momentum += 0.2
+        e.movement[1] += e.y_momentum
+        if e.y_momentum > 5:
+            e.y_momentum = 5
+        e.move(e.movement, tile_rects) # moving enemies here
+
     # moving the player
     collisions = player.move(player.movement, tile_rects)
 
@@ -222,7 +240,6 @@ while True:
     if collisions['top']:  # collision with ceiling
         player.y_momentum = 0
     if collisions['bottom']:  # jumping, collisions, walking sfx
-        print(player.movement[0])
         player.y_momentum = 0
         player.air_timer = 0
         if player.special_move == 'double_jump':
@@ -235,14 +252,10 @@ while True:
 
     # displaying
     player.render(display, scroll)
+    for e in enemies:
+        e.render(display, scroll)
 
+    # things
     screen.blit(pygame.transform.scale(display, RES), (0, 0))
     pygame.display.update()
     clock.tick(FPS)
-
-    # fps counter
-    if fps_counter == 0:
-        print(clock.get_fps())
-        fps_counter = 59
-    else:
-        fps_counter -= 1

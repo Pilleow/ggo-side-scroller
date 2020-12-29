@@ -53,3 +53,8 @@ class Enemy(Entity):
         self.hp = enemy_data['hp']
         self.current_weapon = None  # Weapon object or None
         super().__init__(enemy_data['x'], enemy_data['y'], enemy_data['width'], enemy_data['height'], enemy_data['velocity'])
+
+        self.path = []
+
+    def load_path(self, walking_path):
+        self.path = walking_path

@@ -59,6 +59,7 @@ MAP_DIMENSIONS = [640, 240]
 
 game_map = {
     'type': TILE_TYPE,
+    'paths': [],
     'map': []
 }
 for layer in range(MAP_DIMENSIONS[1]):
@@ -67,10 +68,11 @@ for layer in range(MAP_DIMENSIONS[1]):
         game_map['map'][layer].append('')
 
 # other stuff
+paths = []
+new_path = []
 current_tile = None
 camera_move_active = False
 draw_mode_active = False
-fps_counter = 0
 
 # mainloop ---------------------------------------------- #
 while True:
@@ -89,19 +91,31 @@ while True:
                     if btn.check_if_hovering((mouse_pos[0], mouse_pos[1])):  # clicking buttons
                         btn.clicked = True
                         current_tile = btn
+                        if current_tile.tile_type == 'p_p':
+                            new_path = []
+                        elif len(new_path) != 0:
+                            paths.append(new_path)
                         break
 
             elif event.type == pygame.MOUSEBUTTONUP:
-                for btn in buttons:
-                    btn.clicked = False
+                if current_tile:
+                    current_tile.clicked = False
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_m:  # toggle camera movement
                     camera_move_active = not camera_move_active
+
                 if event.key == pygame.K_d:  # turn on draw mode
                     draw_mode_active = True
+                
                 if event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_LCTRL: # save map to map.json
+                    all_paths = paths
+                    if len(new_path) != 0:
+                        all_paths = paths + [new_path]
+
+                    game_map['paths'] = all_paths
                     tools.save_json(game_map, 'map.json')
+
                 if event.key == pygame.K_l and pygame.key.get_mods() & pygame.KMOD_LCTRL: # load map
                     game_map = tools.load_json('map.json')
                     MAP_DIMENSIONS = [len(game_map['map'][0]), len(game_map['map'])]
@@ -117,7 +131,15 @@ while True:
         y_valid = coords[1] >= 0 and coords[1] < MAP_DIMENSIONS[1]
         if not x_valid or not y_valid or not current_tile:
             continue
-        game_map['map'][coords[1]][coords[0]] = current_tile.tile_type
+        if current_tile.tile_type == 'p_p' and coords not in new_path: # "p_p" stands for "path point"
+                new_path.append([coords[0], coords[1]])
+        else:
+            game_map['map'][coords[1]][coords[0]] = current_tile.tile_type
+        if current_tile.tile_type == '':  # erase path
+            for path in paths:
+                for point in path:
+                    if point == coords:
+                        paths[paths.index(path)].remove(point)
 
     # moving the camera by mouse pos
     if pygame.mouse.get_focused() and camera_move_active:
@@ -133,16 +155,6 @@ while True:
     scroll = list(map(int, true_scroll.copy()))
 
     # rendering game map (tiles)
-    '''
-    y = 0
-    for layer in game_map['map']:
-        x = 0
-        for tile in layer:
-            if tile in tiles:
-            x += 1
-        y += 1
-    '''
-
     for y in range(ceil(TRUE_RES[1]/TILE_SIZE) + 1):
         y = y + int(scroll[1]/TILE_SIZE)
         if y < 0 or y >= len(game_map['map']):
@@ -159,6 +171,27 @@ while True:
             else:
                 pygame.draw.rect(display, EMPTY_TILE_COLOR, (x*TILE_SIZE-scroll[0], y*TILE_SIZE-scroll[1], TILE_SIZE, TILE_SIZE), 1)
 
+    # rendering paths
+    all_paths = paths
+    if len(new_path) != 0:
+        all_paths = paths + [new_path]
+
+    for path in all_paths:
+        if len(path) == 0:  # remove path if empty
+            paths.remove(path)
+            continue
+
+        prev_point = path[0]
+        for point in path[1:]:
+            point_1 = TILE_SIZE//2 + point[0]*TILE_SIZE - scroll[0], TILE_SIZE//2 + point[1]*TILE_SIZE-scroll[1]
+            point_2 = TILE_SIZE//2 + prev_point[0]*TILE_SIZE - scroll[0], TILE_SIZE//2 + prev_point[1]*TILE_SIZE-scroll[1]
+            pygame.draw.line(display, [255, 0, 0], point_1, point_2, 3)
+            prev_point = point
+
+        display.blit(tiles['p_p'], (path[0][0]*TILE_SIZE - scroll[0], path[0][1]*TILE_SIZE-scroll[1]))
+        for point in path[1:]:
+            display.blit(tiles['p_p'], (point[0]*TILE_SIZE - scroll[0], point[1]*TILE_SIZE-scroll[1]))
+            
     # rendering tile menu and buttons
     display.blit(tile_menu, (0,0))
     for btn in buttons:
@@ -168,10 +201,3 @@ while True:
     screen.blit(pygame.transform.scale(display, RES), (0, 0))
     pygame.display.update()
     clock.tick(FPS)
-
-    # fps counter
-    if fps_counter == 0:
-        print(clock.get_fps())
-        fps_counter = 59
-    else:
-        fps_counter -= 1

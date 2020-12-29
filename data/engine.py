@@ -53,7 +53,6 @@ class Tools:
             name, ext = os.path.splitext(f)
             if ext not in ALLOWED_AUDIO_EXTENSIONS:
                 continue
-            print(f'{path}/{f}')
             s = pygame.mixer.Sound(f'{path}/{f}')
             s.set_volume(volume)
             if dictionary:
@@ -78,6 +77,15 @@ class Tools:
         '''
         with open(path, mode=mode, encoding=encoding) as f:
             json.dump(data, f, indent=indent)
+
+    @staticmethod
+    def is_visible(scroll: list, display_res: list, entity: object) -> bool:
+        '''
+        Check if an entity is visible on display
+        '''
+        if pygame.Rect(scroll[0], scroll[1], display_res[0], display_res[1]).colliderect(entity):
+            return True
+        return False
 
 
 class Entity:
@@ -155,13 +163,13 @@ class Entity:
 
         return collision_types
 
-    def render(self, display: object, true_scroll: [int, int], draw_rect: bool=False) -> None:
+    def render(self, display: object, scroll: [int, int], draw_rect: bool=False) -> None:
         ''' 
         Render entity sprite on `display`.
         '''
-        display.blit(self.sprites[self.current_sprite], (self.rect.x - true_scroll[0], self.rect.y - true_scroll[1]))
+        display.blit(self.sprites[self.current_sprite], (self.rect.x - scroll[0], self.rect.y - scroll[1]))
         if draw_rect:
-            pygame.draw.rect(display, [0, 255, 0], (self.rect.x - true_scroll[0], self.rect.y - true_scroll[1], self.rect.width, self.rect.height), 1)
+            pygame.draw.rect(display, [0, 255, 0], (self.rect.x - scroll[0], self.rect.y - scroll[1], self.rect.width, self.rect.height), 1)
 
     def _collision_test(self, tiles: list) -> list:
         ''' 
