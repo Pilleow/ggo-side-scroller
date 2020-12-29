@@ -30,7 +30,26 @@ class Button:
 class Player(Entity):
     def __init__(self, player_data):
         self.hp = player_data['hp']
+        self.all_special_moves = player_data['all_special_moves']
         self.special_move = player_data['special_move']
         self.inventory = player_data['inventory']
-        
         super().__init__(player_data['x'], player_data['y'], player_data['width'], player_data['height'], player_data['velocity'])
+
+        self.current_weapon = None  # Weapon object or None
+        self.additional_jumps = 0  # double jump
+        self.dash_cooldown = 0  # dash
+
+    def change_special_move(self, change_to):
+        self.special_move = change_to
+        if change_to == 'dash':
+            self.additional_jumps = 0
+            self.jump_mod = 2.2
+        elif change_to == 'double_jump':
+            self.jump_mod = 1.9
+
+
+class Enemy(Entity):
+    def __init__(self, enemy_data):
+        self.hp = enemy_data['hp']
+        self.current_weapon = None  # Weapon object or None
+        super().__init__(enemy_data['x'], enemy_data['y'], enemy_data['width'], enemy_data['height'], enemy_data['velocity'])

@@ -78,11 +78,16 @@ player_data = {
     'height': 10,
     'velocity': 2,
     'hp': 100,
+    'all_special_moves': ['double_jump', 'dash'],
     'special_move': 'double_jump',
     'inventory': []
 }
 player = c.Player(player_data)
 player.load_sprites('sprites/player/')
+player.change_special_move('double_jump')
+
+# more sounds
+special_moves = tools.load_sounds(sfx_path, ['dash.wav','change_move.wav'], 0.25, True)
 
 # other
 fps_counter = 0
@@ -90,6 +95,9 @@ fps_counter = 0
 # game loop --------------------------------------------- #
 while True:
     display.fill(BG_COLOR)
+
+    # things
+    player.movement = [0, 0]
 
     # camera update
     true_scroll[0] += (player.rect.x - true_scroll[0] - (TRUE_RES[0] + player.rect.width)/2)/20
@@ -143,27 +151,56 @@ while True:
                 else:
                     pygame.mixer.music.fadeout(500)
                 music_muted = not music_muted
+
             elif event.key == pygame.K_d:  # go right
                 player.moving_right = True
+
             elif event.key == pygame.K_a:  # go left
                 player.moving_left = True
-            elif event.key == pygame.K_w and player.air_timer < 6:  # jump
-                sfx = choice(jump_sfx)
-                sfx.play()
-                player.y_momentum = -player.velocity * 2.2
+
+            elif event.key == pygame.K_w:  # jump
+                if player.air_timer < 6:
+                    choice(jump_sfx).play()
+                    player.y_momentum = -player.velocity * player.jump_mod
+                elif player.additional_jumps > 0:
+                    choice(jump_sfx).play()
+                    player.y_momentum = -player.velocity * player.jump_mod
+                    player.additional_jumps -= 1
+
+            elif event.key == pygame.K_q:  # change special move
+                special_moves['change_move'].play()
+                if player.special_move == player.all_special_moves[-1]:
+                    player.change_special_move(player.all_special_moves[0])
+                else:
+                    player.change_special_move(player.all_special_moves[player.all_special_moves.index(player.special_move) + 1])
 
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_d:  # stop going right
                 player.moving_right = False
+
             elif event.key == pygame.K_a:  # stop going left
                 player.moving_left = False
 
     # moving player
-    player.movement = [0, 0]
     if player.moving_right:
-        player.movement[0] += player.velocity
+        player.movement[0] += player.velocity # walk right
+
+        # dash special move
+        if pygame.key.get_mods() & pygame.KMOD_LSHIFT and player.special_move == 'dash' and player.dash_cooldown == 0:
+            special_moves['dash'].play()
+            player.dash_cooldown = 120
+        if player.dash_cooldown > 100:
+            player.movement[0] += player.velocity * ((player.dash_cooldown - 100)/15)**2 + 1
+
     if player.moving_left:
-        player.movement[0] -= player.velocity
+        player.movement[0] -= player.velocity # walk left
+
+        # dash special move
+        if pygame.key.get_mods() & pygame.KMOD_LSHIFT and player.special_move == 'dash' and player.dash_cooldown == 0:
+            special_moves['dash'].play()
+            player.dash_cooldown = 120
+        if player.dash_cooldown > 100:
+            player.movement[0] -= player.velocity * ((player.dash_cooldown - 100)/15)**2 + 1
 
     # gravity
     player.y_momentum += 0.2
@@ -175,6 +212,8 @@ while True:
     collisions = player.move(player.movement, tile_rects)
 
     # corrections, miscellanous
+    if player.dash_cooldown > 0:  # dash cooldown cooling down
+        player.dash_cooldown -= 1
     if walking_sfx_timer > 0:  # walking sfx timer
         walking_sfx_timer -= 1
     if player.rect.y > 500:  # respawn after fall
@@ -183,9 +222,12 @@ while True:
     if collisions['top']:  # collision with ceiling
         player.y_momentum = 0
     if collisions['bottom']:  # jumping, collisions, walking sfx
+        print(player.movement[0])
         player.y_momentum = 0
         player.air_timer = 0
-        if player.movement[0] != 0 and walking_sfx_timer == 0 and not collisions['left'] and not collisions['right']:
+        if player.special_move == 'double_jump':
+            player.additional_jumps = 1
+        if player.movement[0] != 0 and walking_sfx_timer == 0 and not collisions['left'] and not collisions['right'] and abs(player.movement[0]) <= player.velocity:
             walking_sfx_timer = 20 // player.velocity
             choice(walking_sfx).play()
     else:

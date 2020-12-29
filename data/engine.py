@@ -35,7 +35,7 @@ class Tools:
         return sprites
 
     @staticmethod
-    def load_sounds(path: str, file_names: list=None, volume: float=1) -> list:
+    def load_sounds(path: str, file_names: list=None, volume: float=1, dictionary: bool=False) -> list:
         '''
         Returns a list with sounds listed in `file_names`.\n
         Leave `file_names` empty to load all sounds from `path`.
@@ -48,14 +48,18 @@ class Tools:
             s.set_volume(volume)
             return s
 
-        sounds = []
+        sounds = [] if not dictionary else {} 
         for f in file_names:
             name, ext = os.path.splitext(f)
             if ext not in ALLOWED_AUDIO_EXTENSIONS:
                 continue
+            print(f'{path}/{f}')
             s = pygame.mixer.Sound(f'{path}/{f}')
             s.set_volume(volume)
-            sounds.append(s)
+            if dictionary:
+                sounds[name] = s
+            else:
+                sounds.append(s)
         return sounds
 
     @staticmethod
@@ -81,9 +85,11 @@ class Entity:
         self.rect = pygame.Rect(x, y, width, height)
         self.spawnpoint = [x, y]
 
+        self.movement = [0, 0]
         self.current_sprite = 'idle'
         self.y_momentum = 0
         self.air_timer = 0
+        self.jump_mod = 2.2
         self.velocity = velocity
         self.moving_right = False
         self.moving_left = False
