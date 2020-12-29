@@ -1,20 +1,29 @@
 import pygame
+import random
+
 from .engine import *
 
 
 class Button:
-    def __init__(self, x, y, sprite_clicked, sprite_idle, tile_type):
+    def __init__(self, x: int, y: int, sprite_clicked: object, sprite_idle: object, tile_type: str):
         self.rect = pygame.Rect(x, y, sprite_idle.get_width(), sprite_idle.get_height())
         self.sprites = {"idle": sprite_idle, "clicked": sprite_clicked}
         self.tile_type = tile_type
         self.clicked = False
 
-    def check_if_hovering(self, mouse_pos) -> bool:
+    def check_if_hovering(self, mouse_pos: list) -> bool:
+        '''
+        Check if `mouse_pos = [float, float]` coordinates overlap the button. \\
+        If both X and Y do, return `True`. Else, return `False`.
+        '''
         if pygame.Rect(mouse_pos[0], mouse_pos[1], 1, 1).colliderect(self.rect):
             return True
         return False
 
-    def render(self, display):
+    def render(self, display: object) -> None:
+        ''' 
+        Render button on `display`.
+        '''
         if self.clicked:
             if type(self.sprites['clicked']) == list:
                 pygame.draw.rect(display, self.sprites['clicked'], self.rect)
@@ -28,18 +37,26 @@ class Button:
 
 
 class Player(Entity):
-    def __init__(self, player_data):
+    def __init__(self, player_data: dict):
         self.hp = player_data['hp']
         self.all_special_moves = player_data['all_special_moves']
         self.special_move = player_data['special_move']
         self.inventory = player_data['inventory']
-        super().__init__(player_data['x'], player_data['y'], player_data['width'], player_data['height'], player_data['velocity'])
+        super().__init__(
+            player_data['x'], player_data['y'], 
+            player_data['width'], player_data['height'], 
+            player_data['velocity']
+        )
 
         self.current_weapon = None  # Weapon object or None
         self.additional_jumps = 0  # double jump
         self.dash_cooldown = 0  # dash
 
-    def change_special_move(self, change_to):
+    def change_special_move(self, change_to: str) -> None:
+        '''
+        Change special move to `change_to` string. \\
+        Additionally, restart some stats to match the new special move.
+        '''
         self.special_move = change_to
         if change_to == 'dash':
             self.additional_jumps = 0
@@ -49,12 +66,58 @@ class Player(Entity):
 
 
 class Enemy(Entity):
-    def __init__(self, enemy_data):
+    def __init__(self, enemy_data: dict, path: list, tile_size: int=16):
         self.hp = enemy_data['hp']
+        super().__init__(
+            enemy_data['x']*tile_size + (tile_size - enemy_data['width'])//2, 
+            enemy_data['y']*tile_size + tile_size - enemy_data['height'], 
+            enemy_data['width'], 
+            enemy_data['height'], 
+            enemy_data['velocity']
+        )
+
         self.current_weapon = None  # Weapon object or None
-        super().__init__(enemy_data['x'], enemy_data['y'], enemy_data['width'], enemy_data['height'], enemy_data['velocity'])
+        self.path = path
+        self.current_point = self.path[self.path.index([enemy_data['x'], enemy_data['y']])]
+        self.target_point = self.current_point
+        self.moving_chance = 0
 
-        self.path = []
+    def is_in_range(self, coords: list, tile_size: int=16) -> bool:
+        '''
+        Calculates the distance to specific `coords = [int, int]`. \\
+        If distance < range, return `distance = float` value. Else, return `False`.
+        '''
+        _range = 96 # !!! TEMPORARY !!! Change to self.current_weapon.range when Weapons are implemented!                                     !!!!!!!!!!!!!!!
+        rel_x = self.rect.x - coords[0]
+        rel_y = self.rect.y - coords[1]
+        distance = ((rel_x + self.rect.width//2)**2 + (rel_y - self.rect.height//2)**2)**0.5
+        if _range > distance:
+            return distance
+        return False
 
-    def load_path(self, walking_path):
-        self.path = walking_path
+    def move_randomly(self, increase: float=0.001, tile_size: int=16) -> None: # fuck this thing
+        '''
+        This piece of shit is stupid. It does a lot of things and is dumb. \\
+        I hate it and I won't tell you anything about it. Fuck this. \n
+        If you want to know anything about this, look it up, though I don't recommend doing it.
+        '''
+        if self.target_point == self.current_point and random.uniform(0, 1) < self.moving_chance: # set new target tile to move to
+            self.target_point = self.path[random.randint(0, len(self.path)-1)]
+            self.moving_chance = 0
+        
+        elif self.target_point == self.current_point:  # increase chance of moving in the next frame
+            self.moving_chance += increase
+
+        else:  # move
+            if self.current_point[0] < self.target_point[0]:
+                if self.rect.x + self.velocity < self.target_point[0]*tile_size + (tile_size - self.rect.width)//2:
+                    self.rect.x += self.velocity
+                else:
+                    self.rect.x = self.target_point[0]*tile_size + (tile_size - self.rect.width)//2
+                    self.current_point = self.target_point
+            elif self.current_point[0] > self.target_point[0]:
+                if self.rect.x + self.velocity > self.target_point[0]*tile_size + (tile_size - self.rect.width)//2:
+                    self.rect.x -= self.velocity
+                else:
+                    self.rect.x = self.target_point[0]*tile_size + (tile_size - self.rect.width)//2
+                    self.current_point = self.target_point

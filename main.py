@@ -89,9 +89,8 @@ player.change_special_move('double_jump')
 # enemies
 enemies = []
 for path in game_map['paths']:
-    spawn = list(map(lambda x: x*TILE_SIZE, choice(path)))
-    e = c.Enemy({'x': spawn[0], 'y': spawn[1], 'width': 6, 'height': 10, 'velocity': 2, 'hp': 100})
-    e.load_path(path)
+    spawn = choice(path)
+    e = c.Enemy({'x': spawn[0], 'y': spawn[1], 'width': 6, 'height': 10, 'velocity': 1, 'hp': 100}, path)
     e.load_sprites('sprites/enemy/small/')
     enemies.append(e)
 
@@ -216,18 +215,18 @@ while True:
     if player.y_momentum > 5:
         player.y_momentum = 5
 
-    for e in enemies: # apply gravity to enemies
-        if not tools.is_visible(scroll, TRUE_RES, e):
-            continue
-
-        e.y_momentum += 0.2
-        e.movement[1] += e.y_momentum
-        if e.y_momentum > 5:
-            e.y_momentum = 5
-        e.move(e.movement, tile_rects) # moving enemies here
-
     # moving the player
     collisions = player.move(player.movement, tile_rects)
+
+    # moving enemies
+    for e in enemies:
+        e.move_randomly() # ughhh
+
+    # for enemy: detect if player in range
+    for e in enemies:
+        distance = e.is_in_range([player.rect.x + player.rect.width//2, player.rect.y - player.rect.height//2])
+        if distance:
+            print('LOS EXISTS')
 
     # corrections, miscellanous
     if player.dash_cooldown > 0:  # dash cooldown cooling down
