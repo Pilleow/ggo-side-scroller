@@ -163,6 +163,16 @@ class Entity:
 
         return collision_types
 
+    def get_distance_to(self, coords: list) -> float:
+        '''
+        Return `float` distance calculated from the center \\
+        of `self.rect` to `coords = [int, int]`. \\
+        Uses the holy Pythagorean theorem.
+        '''
+        rel_x = self.rect.x + self.rect.width//2 - coords[0] 
+        rel_y = self.rect.y - self.rect.height//2 - coords[1]
+        return (rel_x**2 + rel_y**2)**0.5
+
     def render(self, display: object, scroll: [int, int], draw_rect: bool=False) -> None:
         ''' 
         Render entity sprite on `display`.

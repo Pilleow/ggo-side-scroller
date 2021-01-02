@@ -1,5 +1,6 @@
 import pygame
 import random
+import math
 
 from .engine import *
 
@@ -82,19 +83,6 @@ class Enemy(Entity):
         self.target_point = self.current_point
         self.moving_chance = 0
 
-    def is_in_range(self, coords: list, tile_size: int=16) -> bool:
-        '''
-        Calculates the distance to specific `coords = [int, int]`. \\
-        If distance < range, return `distance = float` value. Else, return `False`.
-        '''
-        _range = 96 # !!! TEMPORARY !!! Change to self.current_weapon.range when Weapons are implemented!                                     !!!!!!!!!!!!!!!
-        rel_x = self.rect.x - coords[0]
-        rel_y = self.rect.y - coords[1]
-        distance = ((rel_x + self.rect.width//2)**2 + (rel_y - self.rect.height//2)**2)**0.5
-        if _range > distance:
-            return distance
-        return False
-
     def move_randomly(self, increase: float=0.001, tile_size: int=16) -> None: # fuck this thing
         '''
         This piece of shit is stupid. It does a lot of things and is dumb. \\
@@ -121,3 +109,46 @@ class Enemy(Entity):
                 else:
                     self.rect.x = self.target_point[0]*tile_size + (tile_size - self.rect.width)//2
                     self.current_point = self.target_point
+
+    def is_detected(self, coords: list, game_map: list, transp_blcks: list, tile_accuracy: int=16, tile_size: int=16) -> bool:
+        '''
+        Combination of `is_in_range` and `is_blocked`. Abstracts these two away.
+        If both methods return True, return True, else return False.
+        '''
+        if not self.is_in_range(coords):
+            return False
+        if self.is_vision_blocked(coords, game_map, transp_blcks, tile_accuracy, tile_size):
+            return False
+        return True
+
+    def is_in_range(self, coords: list) -> bool:
+        '''
+        Checks if `coords = [int, int]` are in range. \\
+        If distance <= range, return True. Else, return `False`.
+        '''
+        _range = 96 # !!! TEMPORARY !!! Change to self.current_weapon.range when Weapons are implemented!
+        if _range >= self.get_distance_to(coords):
+            return True
+        return False
+
+    def is_vision_blocked(self, coords: list, game_map: list, transp_blcks: list, tile_accuracy: int=4, tile_size: int=16) -> bool:
+        '''
+        Check if any blocks are in the way to `coords = [int, int]`.
+        '''
+        x_center = self.rect.center[0]
+        y_center = self.rect.center[1]
+
+        if coords[0] < x_center:
+            range_x = range(coords[0], x_center, tile_accuracy)
+        else:
+            range_x = range(x_center, coords[0], tile_accuracy)
+        if coords[1] < y_center:
+            range_y = range(coords[1], y_center, tile_accuracy)
+        else:
+            range_y = range(y_center, coords[1], tile_accuracy)
+
+        for x in range_x:
+            for y in range_y:
+                if game_map[int(y/tile_size)][int(x/tile_size)] not in transp_blcks:
+                    return True
+        return False

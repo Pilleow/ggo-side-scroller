@@ -218,15 +218,14 @@ while True:
     # moving the player
     collisions = player.move(player.movement, tile_rects)
 
-    # moving enemies
+    # moving enemies if player not in range, else attack player
     for e in enemies:
-        e.move_randomly() # ughhh
-
-    # for enemy: detect if player in range
-    for e in enemies:
-        distance = e.is_in_range([player.rect.x + player.rect.width//2, player.rect.y - player.rect.height//2])
-        if distance:
-            print('LOS EXISTS')
+        coords = [player.rect.center[0], player.rect.center[1]]
+        if e.is_detected(coords, game_map['map'], ['', 'p_p', 'S']):
+            print("Detected!")
+            pass
+        else:
+            e.move_randomly()
 
     # corrections, miscellanous
     if player.dash_cooldown > 0:  # dash cooldown cooling down
@@ -246,6 +245,7 @@ while True:
         if player.movement[0] != 0 and walking_sfx_timer == 0 and not collisions['left'] and not collisions['right'] and abs(player.movement[0]) <= player.velocity:
             walking_sfx_timer = 20 // player.velocity
             choice(walking_sfx).play()
+            print()  # debug
     else:
         player.air_timer += 1
 
