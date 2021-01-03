@@ -6,9 +6,10 @@ import data.classes as c
 from math import ceil
 from random import choice
 
-RES = [(1024, 576), (1152, 648), (1280, 720), (1366, 768), (1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
+# first element in RES is the fullscreen resolution, set automatically when turning on fullscreen
+RES = [(0, 0), (1024, 576), (1152, 648), (1280, 720), (1366, 768), (1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
 TRUE_RES = (480, 270)  # lower to increase FPS (keep ratio same as "RES[CNT_RES]")
-CNT_RES = 4 # index of item in RESOLUTIONS
+CNT_RES = 3 # index of item in RESOLUTIONS
 FPS = 60
 
 pygame.mixer.pre_init(44100, -16, 2, 512)
@@ -99,6 +100,12 @@ for path in game_map['paths']:
 # more sounds
 special_moves = tools.load_sounds(sfx_path, ['dash.wav','change_move.wav'], 0.25, True)
 
+
+def display_reinit():
+    pygame.display.quit()
+    pygame.display.init()
+
+
 # game loop --------------------------------------------- #
 while True:
     display.fill(BG_COLOR)
@@ -176,12 +183,23 @@ while True:
                     player.change_special_move(player.all_special_moves[0])
                 else:
                     player.change_special_move(player.all_special_moves[player.all_special_moves.index(player.special_move) + 1])
-            elif event.key == pygame.K_UP: # cycle resolutions
+            elif event.key == pygame.K_F12: # cycle resolutions
+                display_reinit()
                 if CNT_RES == len(RES)-1:
-                    CNT_RES = 0
+                    CNT_RES = 1
                 else:
                     CNT_RES += 1
                 screen = pygame.display.set_mode(RES[CNT_RES])
+            elif event.key == pygame.K_F11:  # toggle fullscreen
+                display_reinit()
+                if CNT_RES == 0:
+                    CNT_RES += 1
+                    screen = pygame.display.set_mode(RES[CNT_RES])
+                else:
+                    CNT_RES = 0
+                    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+                    print(screen.get_width(), screen.get_height())
+                    RES[CNT_RES] = (screen.get_width(), screen.get_height())
 
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_d:  # stop going right
@@ -237,7 +255,6 @@ while True:
         if player.movement[0] != 0 and walking_sfx_timer == 0 and not collisions['left'] and not collisions['right'] and abs(player.movement[0]) <= player.velocity:
             walking_sfx_timer = 20 // player.velocity
             choice(walking_sfx).play()
-            print()  # debug
     else:
         player.air_timer += 1
 
@@ -260,4 +277,3 @@ while True:
     screen.blit(pygame.transform.scale(display, RES[CNT_RES]), (0, 0))
     pygame.display.update()
     clock.tick(FPS)
-    print(RES[CNT_RES])
