@@ -140,14 +140,19 @@ class Enemy(Entity):
 
         if coords[0] < x_center:
             range_x = range(coords[0], x_center, tile_accuracy)
+        elif coords[0] == x_center:
+            range_x = [coords[0]]
         else:
             range_x = range(x_center, coords[0], tile_accuracy)
         if coords[1] < y_center:
             range_y = range(coords[1], y_center, tile_accuracy)
+        elif coords[1] == y_center:
+            range_y = [coords[1]]
         else:
             range_y = range(y_center, coords[1], tile_accuracy)
 
         for x in range_x:
+            print(x)
             for y in range_y:
                 if game_map[int(y/tile_size)][int(x/tile_size)] not in transp_blcks:
                     return True
