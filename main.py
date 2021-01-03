@@ -6,8 +6,9 @@ import data.classes as c
 from math import ceil
 from random import choice
 
-RES = (1600, 900)
-TRUE_RES = (480, 270)  # lower to increase FPS (keep ratio same as "RES")
+RES = [(1024, 576), (1152, 648), (1280, 720), (1366, 768), (1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
+TRUE_RES = (480, 270)  # lower to increase FPS (keep ratio same as "RES[CNT_RES]")
+CNT_RES = 4 # index of item in RESOLUTIONS
 FPS = 60
 
 pygame.mixer.pre_init(44100, -16, 2, 512)
@@ -15,7 +16,7 @@ pygame.init()
 pygame.mixer.set_num_channels(16)
 
 clock = pygame.time.Clock()
-screen = pygame.display.set_mode(RES, 0, 32)
+screen = pygame.display.set_mode(RES[CNT_RES])
 pygame.display.set_caption('Unnamed Side Scroller')
 display = pygame.Surface(TRUE_RES)
 tools = e.Tools()
@@ -55,6 +56,7 @@ CURRENT_MAP = 'wasteland_1'
 game_map = tools.load_json(f'data/maps/{CURRENT_MAP}.json')
 spawnpoint = [0, 0]
 y = 0
+
 for layer in game_map['map']:
     x = 0
     for tile in layer:
@@ -101,10 +103,8 @@ special_moves = tools.load_sounds(sfx_path, ['dash.wav','change_move.wav'], 0.25
 while True:
     display.fill(BG_COLOR)
 
-    # things
+    # tings
     player.movement = [0, 0]
-    for e in enemies:
-        e.movement = [0, 0]
 
     # camera update
     true_scroll[0] += (player.rect.x - true_scroll[0] - (TRUE_RES[0] + player.rect.width)/2)/20
@@ -140,7 +140,7 @@ while True:
 
     # mouse handling
     mouse_pos = pygame.mouse.get_pos()
-    if player.rect.x + player.rect.width * (TRUE_RES[0]/RES[0]) > mouse_pos[0] * (TRUE_RES[0]/RES[0]) + scroll[0]:
+    if player.rect.x + player.rect.width * (TRUE_RES[0]/RES[CNT_RES][0]) > mouse_pos[0] * (TRUE_RES[0]/RES[CNT_RES][0]) + scroll[0]:
         player.set_flip_sprite(False, True)
     else:
         player.set_flip_sprite(False, False)
@@ -158,13 +158,10 @@ while True:
                 else:
                     pygame.mixer.music.fadeout(500)
                 music_muted = not music_muted
-
             elif event.key == pygame.K_d:  # go right
                 player.moving_right = True
-
             elif event.key == pygame.K_a:  # go left
                 player.moving_left = True
-
             elif event.key == pygame.K_w:  # jump
                 if player.air_timer < 6:
                     choice(jump_sfx).play()
@@ -173,18 +170,22 @@ while True:
                     choice(jump_sfx).play()
                     player.y_momentum = -player.velocity * player.jump_mod
                     player.additional_jumps -= 1
-
             elif event.key == pygame.K_q:  # change special move
                 special_moves['change_move'].play()
                 if player.special_move == player.all_special_moves[-1]:
                     player.change_special_move(player.all_special_moves[0])
                 else:
                     player.change_special_move(player.all_special_moves[player.all_special_moves.index(player.special_move) + 1])
+            elif event.key == pygame.K_UP: # cycle resolutions
+                if CNT_RES == len(RES)-1:
+                    CNT_RES = 0
+                else:
+                    CNT_RES += 1
+                screen = pygame.display.set_mode(RES[CNT_RES])
 
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_d:  # stop going right
                 player.moving_right = False
-
             elif event.key == pygame.K_a:  # stop going left
                 player.moving_left = False
 
@@ -218,15 +219,6 @@ while True:
     # moving the player
     collisions = player.move(player.movement, tile_rects)
 
-    # moving enemies if player not in range, else attack player
-    for e in enemies:
-        coords = [player.rect.center[0], player.rect.center[1]]
-        if e.is_detected(coords, game_map['map'], ['', 'p_p', 'S']):
-            print("Detected!")
-            pass
-        else:
-            e.move_randomly()
-
     # corrections, miscellanous
     if player.dash_cooldown > 0:  # dash cooldown cooling down
         player.dash_cooldown -= 1
@@ -249,12 +241,23 @@ while True:
     else:
         player.air_timer += 1
 
+    # enemy mechanics, all in one loop *so it's faster*
+    for e in enemies:
+        e.movement = [0, 0]  # setting movement
+
+        coords = [player.rect.center[0], player.rect.center[1]]
+        if e.is_detected(coords, game_map['map'], ['', 'p_p', 'S']):
+            pass  # attacking
+        else:
+            e.move_randomly()  # moving
+
+        e.render(display, scroll)  # displaying
+
     # displaying
     player.render(display, scroll)
-    for e in enemies:
-        e.render(display, scroll)
 
     # things
-    screen.blit(pygame.transform.scale(display, RES), (0, 0))
+    screen.blit(pygame.transform.scale(display, RES[CNT_RES]), (0, 0))
     pygame.display.update()
     clock.tick(FPS)
+    print(RES[CNT_RES])
