@@ -79,11 +79,11 @@ class Tools:
             json.dump(data, f, indent=indent)
 
     @staticmethod
-    def is_visible(scroll: list, display_res: list, entity: object) -> bool:
+    def is_visible(scroll: list, display_res: list, entity_rect: object) -> bool:
         '''
         Check if an entity is visible on display
         '''
-        if pygame.Rect(scroll[0], scroll[1], display_res[0], display_res[1]).colliderect(entity):
+        if pygame.Rect(scroll[0], scroll[1], display_res[0], display_res[1]).colliderect(entity_rect):
             return True
         return False
 
@@ -109,6 +109,13 @@ class Entity:
         self.rect.y = self.spawnpoint[1]
         self.y_momentum = 0
         self.air_timer = 0
+
+    def set_pos(self, new_pos: list) -> None:
+        '''
+        Set new self.rect.x, self.rect.y.
+        '''
+        self.rect.x = new_pos[0]
+        self.rect.y = new_pos[1]
 
     def load_sprites(self, path: str) -> None:
         ''' 

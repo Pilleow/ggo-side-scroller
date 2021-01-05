@@ -25,8 +25,8 @@ CAMERA_MOVE_PAD = RES[1]//5
 true_scroll = [0, 0]
 
 # tiles
-COLORKEY = (255, 255, 255)
-TILE_TYPE = 'wasteland'
+COLORKEY = (0, 0, 0)
+TILE_TYPE = 'green'
 EMPTY_TILE_COLOR = list(map(abs, [BG_COLOR[0]-15, BG_COLOR[1]-15, BG_COLOR[2]-15]))
 TILE_SIZE = 16
 
@@ -55,7 +55,7 @@ tile_menu.set_alpha(128)
 tile_menu.fill((255,255,255))
 
 # map
-MAP_DIMENSIONS = [640, 240]
+MAP_DIMENSIONS = [23, 32]
 
 game_map = {
     'type': TILE_TYPE,

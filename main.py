@@ -22,17 +22,17 @@ pygame.display.set_caption('Unnamed Side Scroller')
 display = pygame.Surface(TRUE_RES)
 tools = e.Tools()
 
-# camera
-BG_COLOR = (146, 244, 255)
+''' map --------------------------------------------------------- '''
+level = ['blue', 1]
+new_level = None
+game_map = tools.load_json(f'data/maps/{level[0]}_{level[1]}.json')
 
-true_scroll = [0, 0]
-
-# sounds
+''' sounds ------------------------------------------------------ '''
 sfx_path = 'audio/sfx/'
 jump_sfx = tools.load_sounds(sfx_path, ['jump_1.wav', 'jump_2.wav'])
 walking_sfx = tools.load_sounds(sfx_path, ['walk_1.wav', 'walk_2.wav'], 0.15)
 death_sfx = tools.load_sounds(sfx_path, ['death.wav'], 0.25)
-pygame.mixer.music.load('audio/music/wasteland.wav')
+pygame.mixer.music.load(f'audio/music/{level[0]}.wav')
 pygame.mixer.music.set_volume(0.02)
 walking_sfx_timer = 0
 music_muted = True
@@ -40,32 +40,48 @@ music_muted = True
 if not music_muted:
     pygame.mixer.music.play(-1)
 
-# tiles
-COLORKEY = (255, 255, 255)
+''' tiles ------------------------------------------------------- '''
 TILE_SIZE = 16
+try:
+    backgrounds = [
+        [0.2, tools.load_images('sprites/backgrounds/', [f'{level[0]}_3.png'], colorkey=(255, 255, 255))], 
+        [0.4, tools.load_images('sprites/backgrounds/', [f'{level[0]}_2.png'], colorkey=(255, 255, 255))]
+    ]
+except:
+    backgrounds = []
 
-backgrounds = [
-    [0.2, tools.load_images('sprites/backgrounds/', ['wasteland_3.png'], colorkey=COLORKEY)], 
-    [0.4, tools.load_images('sprites/backgrounds/', ['wasteland_2.png'], colorkey=COLORKEY)]
-]
+tiles = tools.load_images(f'sprites/tilesets/{game_map["type"]}', colorkey=(0, 0, 0))
 
-tiles = tools.load_images('sprites/tilesets/wasteland', colorkey=COLORKEY)
+''' player ------------------------------------------------------ '''
+player_data = {
+    'x': 0,
+    'y': 0,
+    'width': 6,
+    'height': 10,
+    'velocity': 2,
+    'hp': 100,
+    'all_special_moves': ['double_jump', 'dash'],
+    'special_move': 'dash',
+    'inventory': []
+}
+player = c.Player(player_data)
+player.load_sprites('sprites/player/')
+player.change_special_move('double_jump')
 
-# map
-CURRENT_MAP = 'wasteland_1'
-
-game_map = tools.load_json(f'data/maps/{CURRENT_MAP}.json')
-spawnpoint = [0, 0]
+''' more map ---------------------------------------------------- '''
+# scan for spawnpoint horizontally
 y = 0
-
 for layer in game_map['map']:
     x = 0
     for tile in layer:
         if tile == 'P':
-            spawnpoint = [x*TILE_SIZE, y*TILE_SIZE]
+            player.set_pos([
+                x*TILE_SIZE + (TILE_SIZE - player.rect.width)//2, 
+                y*TILE_SIZE + TILE_SIZE - player.rect.height
+            ])
             break
         x += 1
-    if spawnpoint != [0, 0]:
+    if player.rect.x != 0 or player.rect.y != 0:
         break
     y += 1
 
@@ -73,23 +89,12 @@ MAP_BOTTOM_COLOR = tiles['8'].get_at((TILE_SIZE//2, TILE_SIZE-1))
 MAP_BOTTOM_Y = len(game_map['map']) * TILE_SIZE
 MAP_WIDTH = len(game_map['map'][0]) * TILE_SIZE
 
-# player
-player_data = {
-    'x': spawnpoint[0],
-    'y': spawnpoint[1],
-    'width': 6,
-    'height': 10,
-    'velocity': 2,
-    'hp': 100,
-    'all_special_moves': ['double_jump', 'dash'],
-    'special_move': 'double_jump',
-    'inventory': []
-}
-player = c.Player(player_data)
-player.load_sprites('sprites/player/')
-player.change_special_move('double_jump')
+''' camera ------------------------------------------------------ '''
+BG_COLOR = (146, 244, 255)
 
-# enemies
+true_scroll = [player.rect.x - TRUE_RES[0]//2, player.rect.y - TRUE_RES[1]//2]
+
+''' enemies ----------------------------------------------------- '''
 enemies = []
 for path in game_map['paths']:
     spawn = choice(path)
@@ -97,28 +102,83 @@ for path in game_map['paths']:
     e.load_sprites('sprites/enemy/small/')
     enemies.append(e)
 
-# more sounds
+''' more sounds ------------------------------------------------- '''
 special_moves = tools.load_sounds(sfx_path, ['dash.wav','change_move.wav'], 0.25, True)
 
+''' other tings ------------------------------------------------- '''
 
-def display_reinit():
+def display_reinit() -> None:
     pygame.display.quit()
     pygame.display.init()
 
 
-# game loop --------------------------------------------- #
+def load_level(level: list) -> list:
+    try:
+        backgrounds = [
+            [0.2, tools.load_images('sprites/backgrounds/', [f'{level[0]}_3.png'], colorkey=(255, 255, 255))], 
+            [0.4, tools.load_images('sprites/backgrounds/', [f'{level[0]}_2.png'], colorkey=(255, 255, 255))]
+        ]
+    except:
+        backgrounds = []
+    tiles = tools.load_images(f'sprites/tilesets/{game_map["type"]}', colorkey=(0, 0, 0))
+
+    pygame.mixer.music.load(f'audio/music/{level[0]}.wav')
+    pygame.mixer.music.set_volume(0.02)
+    if not music_muted:
+        pygame.mixer.music.play(-1)
+
+    return tiles, backgrounds
+
+
+def change_level(direction: str, current_lvl: list) -> list:
+    new_lvl = current_lvl.copy()
+    spawn = [0, 0]
+
+    # set new map zone
+    new_lvl[0] = get_next_map_zone(direction, current_lvl[0])
+    if new_lvl [0] == '':
+        return None, None
+    
+    # required for scan
+    game_map = tools.load_json(f'data/maps/{new_lvl[0]}_{new_lvl[1]}.json')
+
+    # scan for spawnpoint vertically
+    for x in range(len(game_map['map'][0])):
+        if direction == 'L':
+            x = len(game_map['map'][0]) - (x + 1)
+        for y in range(len(game_map['map'])):
+            if game_map['map'][y][x] == 'P':
+                spawn = [x*TILE_SIZE, y*TILE_SIZE]
+                break
+        if spawn != [0, 0]:
+            break
+
+    return game_map, new_lvl, spawn
+
+zone_queue = ['green', 'blue', 'orange', 'red']
+def get_next_map_zone(direction: str, current_zone: str) -> str:
+    next_zone = ''
+    current_zone_index = zone_queue.index(current_zone)
+    if direction == 'R' and current_zone_index < len(zone_queue)-1:
+        next_zone = zone_queue[current_zone_index+1]
+    if direction == 'L' and current_zone_index > 0:
+        next_zone = zone_queue[current_zone_index-1]
+    return next_zone
+
+
+''' game loop --------------------------------------------------- '''
 while True:
     display.fill(BG_COLOR)
 
-    # tings
+    ''' tings ------------------------------------------------------------- '''
     player.movement = [0, 0]
 
-    # camera update
+    ''' camera update ----------------------------------------------------- '''
     true_scroll[0] += (player.rect.x - true_scroll[0] - (TRUE_RES[0] + player.rect.width)/2)/20
     true_scroll[1] += (player.rect.y - true_scroll[1] - (TRUE_RES[1] + player.rect.height)/2)/20
     scroll = list(map(int, true_scroll.copy()))
 
-    # rendering background
+    ''' rendering background ---------------------------------------------- '''
     for i, bg in enumerate(backgrounds):
         x_value = (-scroll[0] * bg[0]) % bg[1].get_width()
 
@@ -128,7 +188,7 @@ while True:
 
         pygame.draw.rect(display, bg[1].get_at((0, bg[1].get_height()-1)), (0, TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]//2 + bg[1].get_height(), TRUE_RES[0], TRUE_RES[1]))
 
-    # rendering tiles
+    ''' rendering tiles --------------------------------------------------- '''
     tile_rects = []
     for y in range(ceil(TRUE_RES[1]/TILE_SIZE) + 1):
         y = y + int(scroll[1]/TILE_SIZE)
@@ -145,14 +205,14 @@ while True:
                 display.blit(tiles[tile], (x*TILE_SIZE - scroll[0], y*TILE_SIZE - scroll[1]))
                 tile_rects.append(pygame.Rect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
-    # mouse handling
+    ''' mouse handling ---------------------------------------------------- '''
     mouse_pos = pygame.mouse.get_pos()
     if player.rect.x + player.rect.width * (TRUE_RES[0]/RES[CNT_RES][0]) > mouse_pos[0] * (TRUE_RES[0]/RES[CNT_RES][0]) + scroll[0]:
         player.set_flip_sprite(False, True)
     else:
         player.set_flip_sprite(False, False)
 
-    # event handling, key input
+    ''' event handling, key input ----------------------------------------- '''
     for event in pygame.event.get():
         if event.type == pygame.QUIT:  # exit game (turn off window)
             pygame.quit()
@@ -207,7 +267,7 @@ while True:
             elif event.key == pygame.K_a:  # stop going left
                 player.moving_left = False
 
-    # moving player
+    ''' applying movement to player (not moving him) ---------------------- '''
     if player.moving_right:
         player.movement[0] += player.velocity # walk right
 
@@ -228,21 +288,36 @@ while True:
         if player.dash_cooldown > 100:
             player.movement[0] -= player.velocity * ((player.dash_cooldown - 100)/15)**2 + 1
 
-    # gravity
-    player.y_momentum += 0.2
-    player.movement[1] += player.y_momentum
-    if player.y_momentum > 5:
-        player.y_momentum = 5
+    ''' gravity ----------------------------------------------------------- '''
+    if tools.is_visible(scroll, TRUE_RES, player.rect):
+        player.y_momentum += 0.2
+        player.movement[1] += player.y_momentum
+        if player.y_momentum > 5:
+            player.y_momentum = 5
 
-    # moving the player
+    ''' moving the player ------------------------------------------------- '''
     collisions = player.move(player.movement, tile_rects)
 
-    # corrections, miscellanous
+    ''' checking player position ------------------------------------------ '''
+    # changing map
+    if player.rect.x + player.rect.width <= 0:
+        game_map, new_level, spawn = change_level('L', level)
+    elif player.rect.x >= len(game_map['map'][0]) * TILE_SIZE:
+        game_map, new_level, spawn = change_level('R', level)
+    if new_level != None:
+        player.rect.x = spawn[0] + (TILE_SIZE - player.rect.width)//2
+        player.rect.y = spawn[1] + TILE_SIZE - player.rect.height
+        level = new_level.copy()
+        new_level = None
+        tiles, backgrounds = load_level(level)
+        true_scroll = [player.rect.x - TRUE_RES[0]//2, player.rect.y - TRUE_RES[1]//2]
+
+    ''' corrections, miscellanous ----------------------------------------- '''
     if player.dash_cooldown > 0:  # dash cooldown cooling down
         player.dash_cooldown -= 1
     if walking_sfx_timer > 0:  # walking sfx timer
         walking_sfx_timer -= 1
-    if player.rect.y > 500:  # respawn after fall
+    if player.rect.y > len(game_map['map']) * TILE_SIZE:  # respawn after fall
         player.respawn()
         death_sfx.play()
     if collisions['top']:  # collision with ceiling
@@ -258,7 +333,7 @@ while True:
     else:
         player.air_timer += 1
 
-    # enemy mechanics, all in one loop *so it's faster*
+    ''' enemy mechanics, all in one loop *so it's faster* ----------------- '''
     for e in enemies:
         e.movement = [0, 0]  # setting movement
 
@@ -270,10 +345,10 @@ while True:
 
         e.render(display, scroll)  # displaying
 
-    # displaying
+    ''' displaying -------------------------------------------------------- '''
     player.render(display, scroll)
 
-    # things
+    ''' things ------------------------------------------------------------ '''
     screen.blit(pygame.transform.scale(display, RES[CNT_RES]), (0, 0))
     pygame.display.update()
     clock.tick(FPS)
