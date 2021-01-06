@@ -1,5 +1,6 @@
 import pygame
 import json
+import random
 import data.engine as e
 import data.classes as c
 
@@ -18,9 +19,13 @@ pygame.mixer.set_num_channels(16)
 
 clock = pygame.time.Clock()
 screen = pygame.display.set_mode(RES[CNT_RES])
-pygame.display.set_caption('Unnamed Side Scroller')
 display = pygame.Surface(TRUE_RES)
 tools = e.Tools()
+
+pygame.display.set_caption('Unnamed Side Scroller')
+icon = pygame.image.load('sprites/icons/icon.png').convert_alpha()
+icon.set_colorkey((0, 0, 0))
+pygame.display.set_icon(icon)
 
 ''' map --------------------------------------------------------- '''
 level = ['blue', 1]
@@ -32,6 +37,8 @@ sfx_path = 'audio/sfx/'
 jump_sfx = tools.load_sounds(sfx_path, ['jump_1.wav', 'jump_2.wav'])
 walking_sfx = tools.load_sounds(sfx_path, ['walk_1.wav', 'walk_2.wav'], 0.15)
 death_sfx = tools.load_sounds(sfx_path, ['death.wav'], 0.25)
+loading_screen_sfx = tools.load_sounds(sfx_path, ['loading_screen.wav'], 0.35)
+
 pygame.mixer.music.load(f'audio/music/{level[0]}.wav')
 pygame.mixer.music.set_volume(0.02)
 walking_sfx_timer = 0
@@ -51,6 +58,7 @@ except:
     backgrounds = []
 
 tiles = tools.load_images(f'sprites/tilesets/{game_map["type"]}', colorkey=(0, 0, 0))
+icons = tools.load_images('sprites/icons', colorkey=(0, 0, 0))
 
 ''' player ------------------------------------------------------ '''
 player_data = {
@@ -85,9 +93,7 @@ for layer in game_map['map']:
         break
     y += 1
 
-MAP_BOTTOM_COLOR = tiles['8'].get_at((TILE_SIZE//2, TILE_SIZE-1))
-MAP_BOTTOM_Y = len(game_map['map']) * TILE_SIZE
-MAP_WIDTH = len(game_map['map'][0]) * TILE_SIZE
+map_bottom_color = tiles['5'].get_at((TILE_SIZE//2, TILE_SIZE-1))
 
 ''' camera ------------------------------------------------------ '''
 BG_COLOR = (146, 244, 255)
@@ -107,6 +113,7 @@ special_moves = tools.load_sounds(sfx_path, ['dash.wav','change_move.wav'], 0.25
 
 ''' other tings ------------------------------------------------- '''
 
+
 def display_reinit() -> None:
     pygame.display.quit()
     pygame.display.init()
@@ -121,11 +128,6 @@ def load_level(level: list) -> list:
     except:
         backgrounds = []
     tiles = tools.load_images(f'sprites/tilesets/{game_map["type"]}', colorkey=(0, 0, 0))
-
-    pygame.mixer.music.load(f'audio/music/{level[0]}.wav')
-    pygame.mixer.music.set_volume(0.02)
-    if not music_muted:
-        pygame.mixer.music.play(-1)
 
     return tiles, backgrounds
 
@@ -155,6 +157,7 @@ def change_level(direction: str, current_lvl: list) -> list:
 
     return game_map, new_lvl, spawn
 
+
 zone_queue = ['green', 'blue', 'orange', 'red']
 def get_next_map_zone(direction: str, current_zone: str) -> str:
     next_zone = ''
@@ -165,6 +168,12 @@ def get_next_map_zone(direction: str, current_zone: str) -> str:
         next_zone = zone_queue[current_zone_index-1]
     return next_zone
 
+
+''' animations -------------------------------------------------- '''
+ZONE_CHANGE_ANIM_TIMER_DEFAULT = random.randint(190, 230)
+LOADING_SCREEN_CLR = [20, 20, 20]
+ANIM_DURATION = 30
+zone_change_anim_timer = 0
 
 ''' game loop --------------------------------------------------- '''
 while True:
@@ -258,8 +267,10 @@ while True:
                 else:
                     CNT_RES = 0
                     screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-                    print(screen.get_width(), screen.get_height())
                     RES[CNT_RES] = (screen.get_width(), screen.get_height())
+
+                pygame.display.set_caption('Unnamed Side Scroller')
+                pygame.display.set_icon(pygame.image.load('sprites/icons/icon.png').convert_alpha())
 
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_d:  # stop going right
@@ -296,21 +307,14 @@ while True:
             player.y_momentum = 5
 
     ''' moving the player ------------------------------------------------- '''
-    collisions = player.move(player.movement, tile_rects)
+    if not zone_change_anim_timer:
+        collisions = player.move(player.movement, tile_rects)
 
     ''' checking player position ------------------------------------------ '''
-    # changing map
-    if player.rect.x + player.rect.width <= 0:
-        game_map, new_level, spawn = change_level('L', level)
-    elif player.rect.x >= len(game_map['map'][0]) * TILE_SIZE:
-        game_map, new_level, spawn = change_level('R', level)
-    if new_level != None:
-        player.rect.x = spawn[0] + (TILE_SIZE - player.rect.width)//2
-        player.rect.y = spawn[1] + TILE_SIZE - player.rect.height
-        level = new_level.copy()
-        new_level = None
-        tiles, backgrounds = load_level(level)
-        true_scroll = [player.rect.x - TRUE_RES[0]//2, player.rect.y - TRUE_RES[1]//2]
+    # check if change map
+    if ((player.rect.x + player.rect.width <= 0 and not level[0] == zone_queue[0]) or (player.rect.x >= len(game_map['map'][0]) * TILE_SIZE and not level[0] == zone_queue[-1])) and zone_change_anim_timer == 0:
+        ZONE_CHANGE_ANIM_TIMER_DEFAULT = random.randint(190, 230)
+        zone_change_anim_timer = ZONE_CHANGE_ANIM_TIMER_DEFAULT
 
     ''' corrections, miscellanous ----------------------------------------- '''
     if player.dash_cooldown > 0:  # dash cooldown cooling down
@@ -347,6 +351,67 @@ while True:
 
     ''' displaying -------------------------------------------------------- '''
     player.render(display, scroll)
+    pygame.draw.rect(display, map_bottom_color, [0, len(game_map['map'])*TILE_SIZE-scroll[1], TRUE_RES[0], TRUE_RES[1]])
+    pygame.draw.rect(display, map_bottom_color, [-scroll[0]-TRUE_RES[0], 0, TRUE_RES[0], TRUE_RES[1]])
+    pygame.draw.rect(display, map_bottom_color, [-scroll[0]+len(game_map['map'][0])*TILE_SIZE, 0, TRUE_RES[0], TRUE_RES[1]])
+
+    ''' loading screen animations ----------------------------------------- '''
+    if zone_change_anim_timer > 0: # swipe out to the left
+        if zone_change_anim_timer > ZONE_CHANGE_ANIM_TIMER_DEFAULT - ANIM_DURATION:
+            # stop music
+            if zone_change_anim_timer == ZONE_CHANGE_ANIM_TIMER_DEFAULT:
+                pygame.mixer.music.fadeout(500)
+
+            i = ZONE_CHANGE_ANIM_TIMER_DEFAULT - ANIM_DURATION
+            points = [
+                [TRUE_RES[0], 0],
+                [TRUE_RES[0], TRUE_RES[1]],
+                [TRUE_RES[0] * (zone_change_anim_timer - i)/ANIM_DURATION, TRUE_RES[1]],
+                [TRUE_RES[0] * (zone_change_anim_timer - i)/ANIM_DURATION, 0]
+            ]
+            pygame.draw.polygon(display, LOADING_SCREEN_CLR, points)
+
+        elif zone_change_anim_timer > ANIM_DURATION:
+            # set new level, reset some stuff
+            if zone_change_anim_timer == ZONE_CHANGE_ANIM_TIMER_DEFAULT - ANIM_DURATION:
+                loading_screen_sfx.play()
+                if player.rect.x >= len(game_map['map'][0]) * TILE_SIZE:
+                    game_map, level, spawn = change_level('R', level)
+                else:
+                    game_map, level, spawn = change_level('L', level)
+                tiles, backgrounds = load_level(level)
+                player.set_pos(
+                    (spawn[0] + (TILE_SIZE - player.rect.width)//2,
+                    spawn[1] + TILE_SIZE - player.rect.height)
+                )
+                map_bottom_color = tiles['5'].get_at((0, TILE_SIZE-1))
+                true_scroll = [player.rect.x - TRUE_RES[0]//2, player.rect.y - TRUE_RES[1]//2]
+
+            display.fill(LOADING_SCREEN_CLR)
+            icon_size = icons['loading_icon'].get_size()
+            rotated_icon = pygame.transform.rotate(icons['loading_icon'], zone_change_anim_timer*3)
+            rotated_icon_size = rotated_icon.get_size()
+            display.blit(
+                pygame.transform.rotate(icons['loading_icon'], zone_change_anim_timer*3), 
+                [TRUE_RES[0]-icon_size[0]-25-rotated_icon_size[0]//2, TRUE_RES[1]-icon_size[1]-25-rotated_icon_size[1]//2]
+            )
+
+
+        else: # swipe in from the right
+            # start music
+            if zone_change_anim_timer == ANIM_DURATION and not music_muted:
+                pygame.mixer.music.load(f'audio/music/{level[0]}.wav')
+                pygame.mixer.music.set_volume(0.02)
+                pygame.mixer.music.play(-1)
+
+            points = [
+                [0, 0],
+                [0, TRUE_RES[1]],
+                [TRUE_RES[0] * zone_change_anim_timer/ANIM_DURATION, TRUE_RES[1]],
+                [TRUE_RES[0] * zone_change_anim_timer/ANIM_DURATION, 0]
+            ]
+            pygame.draw.polygon(display, LOADING_SCREEN_CLR, points)
+        zone_change_anim_timer -= 1
 
     ''' things ------------------------------------------------------------ '''
     screen.blit(pygame.transform.scale(display, RES[CNT_RES]), (0, 0))
