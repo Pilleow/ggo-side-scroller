@@ -23,9 +23,6 @@ display = pygame.Surface(TRUE_RES)
 tools = e.Tools()
 
 pygame.display.set_caption('Unnamed Side Scroller')
-icon = pygame.image.load('sprites/icons/icon.png').convert_alpha()
-icon.set_colorkey((0, 0, 0))
-pygame.display.set_icon(icon)
 
 ''' map --------------------------------------------------------- '''
 level = ['blue', 1]
@@ -58,7 +55,8 @@ except:
     backgrounds = []
 
 tiles = tools.load_images(f'sprites/tilesets/{game_map["type"]}', colorkey=(0, 0, 0))
-icons = tools.load_images('sprites/icons', colorkey=(0, 0, 0))
+ui = tools.load_images('sprites/ui', colorkey=(0, 0, 0))
+pygame.display.set_icon(ui['icon'])
 
 ''' player ------------------------------------------------------ '''
 player_data = {
@@ -100,18 +98,20 @@ BG_COLOR = (146, 244, 255)
 
 true_scroll = [player.rect.x - TRUE_RES[0]//2, player.rect.y - TRUE_RES[1]//2]
 
-''' enemies ----------------------------------------------------- '''
-enemies = []
-for path in game_map['paths']:
-    spawn = choice(path)
-    e = c.Enemy({'x': spawn[0], 'y': spawn[1], 'width': 6, 'height': 10, 'velocity': 1, 'hp': 100}, path)
-    e.load_sprites('sprites/enemy/small/')
-    enemies.append(e)
-
 ''' more sounds ------------------------------------------------- '''
 special_moves = tools.load_sounds(sfx_path, ['dash.wav','change_move.wav'], 0.25, True)
 
 ''' other tings ------------------------------------------------- '''
+
+
+def load_enemies() -> list:
+    enemies = []
+    for path in game_map['paths']:
+        spawn = choice(path)
+        e = c.Enemy({'x': spawn[0], 'y': spawn[1], 'width': 6, 'height': 10, 'velocity': 1, 'hp': 100}, path)
+        e.load_sprites('sprites/enemy/small/')
+        enemies.append(e)
+    return enemies
 
 
 def display_reinit() -> None:
@@ -168,6 +168,8 @@ def get_next_map_zone(direction: str, current_zone: str) -> str:
         next_zone = zone_queue[current_zone_index-1]
     return next_zone
 
+''' enemies ----------------------------------------------------- '''
+enemies = load_enemies()
 
 ''' animations -------------------------------------------------- '''
 ZONE_CHANGE_ANIM_TIMER_DEFAULT = random.randint(190, 230)
@@ -355,6 +357,9 @@ while True:
     pygame.draw.rect(display, map_bottom_color, [-scroll[0]-TRUE_RES[0], 0, TRUE_RES[0], TRUE_RES[1]])
     pygame.draw.rect(display, map_bottom_color, [-scroll[0]+len(game_map['map'][0])*TILE_SIZE, 0, TRUE_RES[0], TRUE_RES[1]])
 
+    ''' all the hud things ------------------------------------------------ '''
+    display.blit(ui['hud_bottom'], [0, TRUE_RES[1]-29])
+
     ''' loading screen animations ----------------------------------------- '''
     if zone_change_anim_timer > 0: # swipe out to the left
         if zone_change_anim_timer > ZONE_CHANGE_ANIM_TIMER_DEFAULT - ANIM_DURATION:
@@ -374,25 +379,26 @@ while True:
         elif zone_change_anim_timer > ANIM_DURATION:
             # set new level, reset some stuff
             if zone_change_anim_timer == ZONE_CHANGE_ANIM_TIMER_DEFAULT - ANIM_DURATION:
-                loading_screen_sfx.play()
                 if player.rect.x >= len(game_map['map'][0]) * TILE_SIZE:
                     game_map, level, spawn = change_level('R', level)
                 else:
                     game_map, level, spawn = change_level('L', level)
                 tiles, backgrounds = load_level(level)
+                enemies = load_enemies()
                 player.set_pos(
                     (spawn[0] + (TILE_SIZE - player.rect.width)//2,
                     spawn[1] + TILE_SIZE - player.rect.height)
                 )
                 map_bottom_color = tiles['5'].get_at((0, TILE_SIZE-1))
                 true_scroll = [player.rect.x - TRUE_RES[0]//2, player.rect.y - TRUE_RES[1]//2]
+                loading_screen_sfx.play() # sfx
 
             display.fill(LOADING_SCREEN_CLR)
-            icon_size = icons['loading_icon'].get_size()
-            rotated_icon = pygame.transform.rotate(icons['loading_icon'], zone_change_anim_timer*3)
+            icon_size = ui['loading_icon'].get_size()
+            rotated_icon = pygame.transform.rotate(ui['loading_icon'], zone_change_anim_timer*3)
             rotated_icon_size = rotated_icon.get_size()
             display.blit(
-                pygame.transform.rotate(icons['loading_icon'], zone_change_anim_timer*3), 
+                pygame.transform.rotate(ui['loading_icon'], zone_change_anim_timer*3), 
                 [TRUE_RES[0]-icon_size[0]-25-rotated_icon_size[0]//2, TRUE_RES[1]-icon_size[1]-25-rotated_icon_size[1]//2]
             )
 

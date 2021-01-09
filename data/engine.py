@@ -88,6 +88,19 @@ class Tools:
         return False
 
 
+    @staticmethod
+    def blit_alpha(display, image, pos, opacity):
+        '''
+        Blit `image` to `target` at `pos` with transparency. \\
+        Modified by `opacity` ranging from `0` to `255`.
+        '''
+        temp = pygame.Surface((image.get_width(), image.get_height())).convert()
+        temp.blit(display, (-pos[0], -pos[1]))
+        temp.blit(image, (0, 0))
+        temp.set_alpha(opacity)
+        display.blit(temp, pos)
+
+
 class Entity:
     def __init__(self, x: int, y: int, width: int, height: int, velocity: int) -> None:
         self.rect = pygame.Rect(x, y, width, height)
