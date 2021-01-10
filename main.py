@@ -1,11 +1,11 @@
 import pygame
 import json
 import random
+import math
 import data.engine as e
 import data.classes as c
 
-from math import ceil
-from random import choice
+from os import listdir
 
 # first element in RES is the fullscreen resolution, 
 # set automatically when turning on fullscreen
@@ -59,6 +59,10 @@ try:
 except:
     backgrounds = []
 
+weapons = {}
+for f in listdir('sprites/weapons/'):
+    weapons[f] = (tools.load_images(f'sprites/weapons/{f}', colorkey=(0, 0, 0)))
+
 tiles = tools.load_images(f'sprites/tilesets/{game_map["type"]}', colorkey=(0, 0, 0))
 ui = tools.load_images('sprites/ui', colorkey=(0, 0, 0))
 pygame.display.set_icon(ui['icon'])
@@ -73,7 +77,7 @@ player_data = {
     'hp': 100,
     'all_special_moves': ['double_jump', 'dash'],
     'special_move': 'dash',
-    'inventory': []
+    'inventory': [c.Weapon(30, list(weapons['robust'].values()), 'AR')]
 }
 player = c.Player(player_data)
 player.load_sprites('sprites/player/')
@@ -112,8 +116,8 @@ special_moves = tools.load_sounds(sfx_path, ['dash.wav','change_move.wav'], 0.25
 def load_enemies() -> list:
     enemies = []
     for path in game_map['paths']:
-        spawn = choice(path)
-        e = c.Enemy({'x': spawn[0], 'y': spawn[1], 'width': 6, 'height': 10, 'velocity': 1, 'hp': 100}, path)
+        spawn = random.choice(path)
+        e = c.Enemy({'x': spawn[0], 'y': spawn[1], 'width': 6, 'height': 10, 'velocity': 1, 'hp': 100, 'range': 96}, path)
         e.load_sprites('sprites/enemy/small/')
         enemies.append(e)
     return enemies
@@ -211,12 +215,12 @@ while True:
 
     ''' rendering tiles --------------------------------------------------- '''
     tile_rects = []
-    for y in range(ceil(TRUE_RES[1]/TILE_SIZE) + 1):
+    for y in range(math.ceil(TRUE_RES[1]/TILE_SIZE) + 1):
         y = y + int(scroll[1]/TILE_SIZE)
         if y < 0 or y >= len(game_map['map']):
             continue
 
-        for x in range(ceil(TRUE_RES[0]/TILE_SIZE) + 1):
+        for x in range(math.ceil(TRUE_RES[0]/TILE_SIZE) + 1):
             x = x + int(scroll[0]/TILE_SIZE)
             if x < 0 or x >= len(game_map['map'][0]):
                 continue
@@ -227,11 +231,9 @@ while True:
                 tile_rects.append(pygame.Rect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
     ''' mouse handling ---------------------------------------------------- '''
-    mouse_pos = pygame.mouse.get_pos()
-    if (
-        player.rect.x + player.rect.width * (TRUE_RES[0]/RES[CNT_RES][0]) 
-        > mouse_pos[0] * (TRUE_RES[0]/RES[CNT_RES][0]) + scroll[0]
-        ):
+    # get mouse pos, convert to TRUE_RES
+    mouse_pos = list(map(lambda x: x*(TRUE_RES[0]/RES[CNT_RES][0]), pygame.mouse.get_pos()))
+    if player.rect.x + player.rect.width//2 > mouse_pos[0] + scroll[0]:
         player.set_flip_sprite(False, True)
     else:
         player.set_flip_sprite(False, False)
@@ -255,10 +257,10 @@ while True:
                 player.moving_left = True
             elif event.key == pygame.K_w:  # jump
                 if player.air_timer < 6:
-                    choice(jump_sfx).play()
+                    random.choice(jump_sfx).play()
                     player.y_momentum = -player.velocity * player.jump_mod
                 elif player.additional_jumps > 0:
-                    choice(jump_sfx).play()
+                    random.choice(jump_sfx).play()
                     player.y_momentum = -player.velocity * player.jump_mod
                     player.additional_jumps -= 1
             elif event.key == pygame.K_q:  # change special move
@@ -362,7 +364,7 @@ while True:
             and abs(player.movement[0]) <= player.velocity
             ):
             walking_sfx_timer = 20 // player.velocity
-            choice(walking_sfx).play()
+            random.choice(walking_sfx).play()
     else:
         player.air_timer += 1
 
@@ -380,6 +382,29 @@ while True:
 
     ''' displaying -------------------------------------------------------- '''
     player.render(display, scroll)
+    w = player.inventory[player.current_item]
+
+    # rendering gun w/ rotation
+    angle = int(-math.atan2((mouse_pos[1]+scroll[1] - player.rect.y), (mouse_pos[0]+scroll[0] - player.rect.x)) * (180/math.pi))
+    h_incr = 0
+    if player.flip == [False, False]:
+        s = pygame.transform.rotate(w.sprites[w.sprite_index], angle)
+        if angle > 0:
+            h_incr = int(s.get_height() * angle/90)
+        display.blit(
+            s,
+            [player.rect.x+player.rect.width//2-scroll[0]-round(s.get_width()*0.2), 
+            player.rect.y+player.rect.height//2-scroll[1]-1 - h_incr]
+        )
+    else:
+        s = pygame.transform.rotate(pygame.transform.flip(w.sprites[w.sprite_index], True, False), angle-180)
+        if angle > 0:
+            h_incr = int(s.get_height() * 90/angle)
+        display.blit(
+            s,
+            [player.rect.x+player.rect.width//2-scroll[0]-round(s.get_width()*0.8), 
+            player.rect.y+player.rect.height//2-scroll[1]-1 - h_incr]
+        )
 
     # rendering border rects
     pygame.draw.rect(

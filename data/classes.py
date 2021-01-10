@@ -49,7 +49,7 @@ class Player(Entity):
             player_data['velocity']
         )
 
-        self.current_weapon = None  # Weapon object or None
+        self.current_item = 0  # index for self.inventory
         self.additional_jumps = 0  # double jump
         self.dash_cooldown = 0  # dash
 
@@ -78,6 +78,7 @@ class Enemy(Entity):
         )
 
         self.current_weapon = None  # Weapon object or None
+        self.range_ = enemy_data['range']
         self.path = path
         self.current_point = self.path[self.path.index([enemy_data['x'], enemy_data['y']])]
         self.target_point = self.current_point
@@ -126,8 +127,7 @@ class Enemy(Entity):
         Checks if `coords = [int, int]` are in range. \\
         If distance <= range, return True. Else, return `False`.
         '''
-        _range = 96 # !!! TEMPORARY !!! Change to self.current_weapon.range when Weapons are implemented!
-        if _range >= self.get_distance_to(coords):
+        if self.range_ >= self.get_distance_to(coords):
             return True
         return False
 
@@ -156,3 +156,17 @@ class Enemy(Entity):
                 if game_map[int(y/tile_size)][int(x/tile_size)] not in transp_blcks:
                     return True
         return False
+
+
+class Weapon:
+    def __init__(self, max_ammo: int, sprites: list, type: str, tags: list=[]):
+        self.max_ammo = max_ammo
+        self.sprites = sprites
+        self.type = type
+        self.tags = tags
+
+        self.sprite_index = 0 # 0 is idle
+        self.ammo = max_ammo  # fully loaded
+
+    def shoot(self, horizontal_tan: float):
+        self.sprite_index = len(self.sprites) - 1
