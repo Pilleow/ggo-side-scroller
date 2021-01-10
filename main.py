@@ -7,10 +7,15 @@ import data.classes as c
 from math import ceil
 from random import choice
 
-# first element in RES is the fullscreen resolution, set automatically when turning on fullscreen
-RES = [(0, 0), (1024, 576), (1152, 648), (1280, 720), (1366, 768), (1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
-TRUE_RES = (480, 270)  # lower to increase FPS (keep ratio same as "RES[CNT_RES]")
-CNT_RES = 3 # index of item in RESOLUTIONS
+# first element in RES is the fullscreen resolution, 
+# set automatically when turning on fullscreen
+RES = [
+    (0, 0), (1024, 576), (1152, 648), 
+    (1280, 720), (1366, 768), (1600, 900), 
+    (1920, 1080), (2560, 1440), (3840, 2160)
+]
+TRUE_RES = (480, 270)  # keep ratio same as "RES[CNT_RES]"
+CNT_RES = 5 # index of item in RES
 FPS = 60
 
 pygame.mixer.pre_init(44100, -16, 2, 512)
@@ -44,7 +49,7 @@ music_muted = True
 if not music_muted:
     pygame.mixer.music.play(-1)
 
-''' tiles ------------------------------------------------------- '''
+''' graphics ---------------------------------------------------- '''
 TILE_SIZE = 16
 try:
     backgrounds = [
@@ -193,11 +198,16 @@ while True:
     for i, bg in enumerate(backgrounds):
         x_value = (-scroll[0] * bg[0]) % bg[1].get_width()
 
-
         display.blit(bg[1], (x_value, TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]//2))
         display.blit(bg[1], (x_value - bg[1].get_width(), TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]//2))
 
-        pygame.draw.rect(display, bg[1].get_at((0, bg[1].get_height()-1)), (0, TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]//2 + bg[1].get_height(), TRUE_RES[0], TRUE_RES[1]))
+        pygame.draw.rect(
+            display, bg[1].get_at((0, bg[1].get_height()-1)), 
+            (0, 
+            TRUE_RES[1]//2 - 100 + (75 * i) - scroll[1] * bg[0]//2 + bg[1].get_height(), 
+            TRUE_RES[0], 
+            TRUE_RES[1])
+            )
 
     ''' rendering tiles --------------------------------------------------- '''
     tile_rects = []
@@ -218,7 +228,10 @@ while True:
 
     ''' mouse handling ---------------------------------------------------- '''
     mouse_pos = pygame.mouse.get_pos()
-    if player.rect.x + player.rect.width * (TRUE_RES[0]/RES[CNT_RES][0]) > mouse_pos[0] * (TRUE_RES[0]/RES[CNT_RES][0]) + scroll[0]:
+    if (
+        player.rect.x + player.rect.width * (TRUE_RES[0]/RES[CNT_RES][0]) 
+        > mouse_pos[0] * (TRUE_RES[0]/RES[CNT_RES][0]) + scroll[0]
+        ):
         player.set_flip_sprite(False, True)
     else:
         player.set_flip_sprite(False, False)
@@ -253,7 +266,11 @@ while True:
                 if player.special_move == player.all_special_moves[-1]:
                     player.change_special_move(player.all_special_moves[0])
                 else:
-                    player.change_special_move(player.all_special_moves[player.all_special_moves.index(player.special_move) + 1])
+                    player.change_special_move(
+                        player.all_special_moves[
+                            player.all_special_moves.index(player.special_move) + 1
+                        ]
+                    )
             elif event.key == pygame.K_F12: # cycle resolutions
                 display_reinit()
                 if CNT_RES == len(RES)-1:
@@ -272,7 +289,7 @@ while True:
                     RES[CNT_RES] = (screen.get_width(), screen.get_height())
 
                 pygame.display.set_caption('Unnamed Side Scroller')
-                pygame.display.set_icon(pygame.image.load('sprites/icons/icon.png').convert_alpha())
+                pygame.display.set_icon(ui['icon'])
 
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_d:  # stop going right
@@ -281,11 +298,12 @@ while True:
                 player.moving_left = False
 
     ''' applying movement to player (not moving him) ---------------------- '''
+    l_shift_pressed = pygame.key.get_mods() & pygame.KMOD_LSHIFT
     if player.moving_right:
         player.movement[0] += player.velocity # walk right
 
         # dash special move
-        if pygame.key.get_mods() & pygame.KMOD_LSHIFT and player.special_move == 'dash' and player.dash_cooldown == 0:
+        if l_shift_pressed and player.special_move == 'dash' and player.dash_cooldown == 0:
             special_moves['dash'].play()
             player.dash_cooldown = 120
         if player.dash_cooldown > 100:
@@ -295,7 +313,7 @@ while True:
         player.movement[0] -= player.velocity # walk left
 
         # dash special move
-        if pygame.key.get_mods() & pygame.KMOD_LSHIFT and player.special_move == 'dash' and player.dash_cooldown == 0:
+        if l_shift_pressed and player.special_move == 'dash' and player.dash_cooldown == 0:
             special_moves['dash'].play()
             player.dash_cooldown = 120
         if player.dash_cooldown > 100:
@@ -314,7 +332,12 @@ while True:
 
     ''' checking player position ------------------------------------------ '''
     # check if change map
-    if ((player.rect.x + player.rect.width <= 0 and not level[0] == zone_queue[0]) or (player.rect.x >= len(game_map['map'][0]) * TILE_SIZE and not level[0] == zone_queue[-1])) and zone_change_anim_timer == 0:
+    left_crossed = (player.rect.x + player.rect.width <= 0 
+                    and not level[0] == zone_queue[0])
+    right_crossed = (player.rect.x >= len(game_map['map'][0]) * TILE_SIZE 
+                    and not level[0] == zone_queue[-1])
+
+    if  (left_crossed or right_crossed) and zone_change_anim_timer == 0:
         ZONE_CHANGE_ANIM_TIMER_DEFAULT = random.randint(190, 230)
         zone_change_anim_timer = ZONE_CHANGE_ANIM_TIMER_DEFAULT
 
@@ -333,7 +356,11 @@ while True:
         player.air_timer = 0
         if player.special_move == 'double_jump':
             player.additional_jumps = 1
-        if player.movement[0] != 0 and walking_sfx_timer == 0 and not collisions['left'] and not collisions['right'] and abs(player.movement[0]) <= player.velocity:
+        if (
+            player.movement[0] != 0 and walking_sfx_timer == 0 
+            and not collisions['left'] and not collisions['right'] 
+            and abs(player.movement[0]) <= player.velocity
+            ):
             walking_sfx_timer = 20 // player.velocity
             choice(walking_sfx).play()
     else:
@@ -353,13 +380,33 @@ while True:
 
     ''' displaying -------------------------------------------------------- '''
     player.render(display, scroll)
-    pygame.draw.rect(display, map_bottom_color, [0, len(game_map['map'])*TILE_SIZE-scroll[1], TRUE_RES[0], TRUE_RES[1]])
-    pygame.draw.rect(display, map_bottom_color, [-scroll[0]-TRUE_RES[0], 0, TRUE_RES[0], TRUE_RES[1]])
-    pygame.draw.rect(display, map_bottom_color, [-scroll[0]+len(game_map['map'][0])*TILE_SIZE, 0, TRUE_RES[0], TRUE_RES[1]])
+
+    # rendering border rects
+    pygame.draw.rect(
+        display, map_bottom_color, 
+        [0, len(game_map['map'])*TILE_SIZE-scroll[1], TRUE_RES[0], TRUE_RES[1]]
+    )
+    pygame.draw.rect(
+        display, map_bottom_color, 
+        [-scroll[0]+len(game_map['map'][0])*TILE_SIZE, 0, TRUE_RES[0], TRUE_RES[1]]
+    )
+    pygame.draw.rect(
+        display, map_bottom_color, 
+        [-scroll[0]-TRUE_RES[0], 0, TRUE_RES[0], TRUE_RES[1]]
+    )
 
     ''' all the hud things ------------------------------------------------ '''
-    display.blit(ui['hud_bottom'], [0, TRUE_RES[1]-29])
+    tools.blit_alpha(display, ui['hud_bottom'], [0, TRUE_RES[1]-29], 240)  # lower hud bg
 
+    if player.hp > 0:
+        pygame.draw.polygon(display, [252, 126, 124], [  # health bar
+            [132, TRUE_RES[1] - 23], [139, TRUE_RES[1] - 16],
+            [128 + int(228 * player.hp / 100), TRUE_RES[1] - 16], 
+            [121 + int(228 * player.hp / 100), TRUE_RES[1] - 23]
+        ])
+    if player.special_move:
+        tools.blit_alpha(display, ui[player.special_move+'_sm'], [20, TRUE_RES[1]//2 - 13], 240)  # special move icon
+ 
     ''' loading screen animations ----------------------------------------- '''
     if zone_change_anim_timer > 0: # swipe out to the left
         if zone_change_anim_timer > ZONE_CHANGE_ANIM_TIMER_DEFAULT - ANIM_DURATION:
@@ -399,9 +446,11 @@ while True:
             rotated_icon_size = rotated_icon.get_size()
             display.blit(
                 pygame.transform.rotate(ui['loading_icon'], zone_change_anim_timer*3), 
-                [TRUE_RES[0]-icon_size[0]-25-rotated_icon_size[0]//2, TRUE_RES[1]-icon_size[1]-25-rotated_icon_size[1]//2]
+                [
+                    TRUE_RES[0]-icon_size[0]-25-rotated_icon_size[0]//2, 
+                    TRUE_RES[1]-icon_size[1]-25-rotated_icon_size[1]//2
+                ]
             )
-
 
         else: # swipe in from the right
             # start music
